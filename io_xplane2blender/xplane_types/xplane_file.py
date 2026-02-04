@@ -707,6 +707,7 @@ class XPlaneFile:
                 xplaneObject.type == "MESH"
                 and xplaneObject.material
                 and xplaneObject.material.options
+                and not xplaneObject.export_animation_only
             ):
                 materials.append(xplaneObject.material)
 
