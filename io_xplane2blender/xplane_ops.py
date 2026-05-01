@@ -18,6 +18,7 @@ from io_xplane2blender.xplane_ops_dev import *
 from io_xplane2blender.xplane_utils import (
     xplane_commands_txt_parser,
     xplane_datarefs_txt_parser,
+    xplane_scene_report,
     xplane_wiper_gradient,
 )
 
@@ -994,6 +995,67 @@ def _get_active_root(
     return None
 
 
+class XPLANE_OT_ExportSceneReport(bpy.types.Operator):
+    """Export a CSV report of all datarefs and manipulators used in the scene"""
+
+    bl_idname = "xplane.export_scene_report"
+    bl_label = "Export Scene Report (CSV)"
+
+    directory: bpy.props.StringProperty(
+        name="Output Directory",
+        description="Directory where the CSV report files will be written",
+        subtype="DIR_PATH",
+    )
+
+    def invoke(self, context, event):
+        # Pre-fill with the directory of the open .blend file, falling back
+        # to the system temp folder when the file hasn't been saved yet.
+        if bpy.data.filepath:
+            import os
+            self.directory = os.path.dirname(bpy.data.filepath)
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        import os
+
+        scene = context.scene
+        blend_name = (
+            os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+            if bpy.data.filepath
+            else "scene"
+        )
+        out_dir = bpy.path.abspath(self.directory)
+
+        view_layer = context.view_layer
+
+        # --- Datarefs ---
+        dr_rows = xplane_scene_report.collect_datarefs(scene, view_layer)
+        dr_csv = xplane_scene_report.write_csv(
+            dr_rows, xplane_scene_report.DATAREF_FIELDS
+        )
+        dr_path = os.path.join(out_dir, f"{blend_name}_datarefs.csv")
+        with open(dr_path, "w", encoding="utf-8") as f:
+            f.write(dr_csv)
+
+        # --- Manipulators ---
+        manip_rows = xplane_scene_report.collect_manipulators(scene, view_layer)
+        manip_csv = xplane_scene_report.write_csv(
+            manip_rows, xplane_scene_report.MANIPULATOR_FIELDS
+        )
+        manip_path = os.path.join(out_dir, f"{blend_name}_manipulators.csv")
+        with open(manip_path, "w", encoding="utf-8") as f:
+            f.write(manip_csv)
+
+        self.report(
+            {"INFO"},
+            f"Wrote {len(dr_rows)} dataref(s) to {dr_path} "
+            f"and {len(manip_rows)} manipulator(s) to {manip_path}",
+        )
+        return {"FINISHED"}
+
+
 _ops = (
     COLLECTION_OT_add_xplane_export_path_directive,
     COLLECTION_OT_remove_xplane_export_path_directive,
@@ -1030,6 +1092,7 @@ _ops = (
     XPLANE_OT_DatarefSearchToggle,
     XPLANE_OT_XPlaneMessage,
     XPLANE_OT_bake_wiper_gradient_texture,
+    XPLANE_OT_ExportSceneReport,
 )
 
 register, unregister = bpy.utils.register_classes_factory(_ops)
