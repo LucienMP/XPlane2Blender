@@ -10,6 +10,7 @@ import io
 from typing import Dict, List, Optional, Tuple
 
 import bpy
+from io_xplane2blender.xplane_helpers import get_action_fcurves
 
 # --- Field name constants ---
 
@@ -115,7 +116,7 @@ def _get_transform_range(
         data_path = f"xplane.datarefs[{index}].value"
 
     if anim_data and anim_data.action:
-        for fcurve in anim_data.action.fcurves:
+        for fcurve in get_action_fcurves(anim_data):
             if fcurve.data_path == data_path:
                 values = [kp.co[1] for kp in fcurve.keyframe_points]
                 if values:
