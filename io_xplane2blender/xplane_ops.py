@@ -1001,57 +1001,57 @@ class XPLANE_OT_ExportSceneReport(bpy.types.Operator):
     bl_idname = "xplane.export_scene_report"
     bl_label = "Export Scene Report (CSV)"
 
-    directory: bpy.props.StringProperty(
-        name="Output Directory",
-        description="Directory where the CSV report files will be written",
-        subtype="DIR_PATH",
+    filepath: bpy.props.StringProperty(
+        name="File Path",
+        description="Path to the CSV report file to write",
+        subtype="FILE_PATH",
+    )
+
+    check_existing: bpy.props.BoolProperty(
+        default=True,
+        options={"HIDDEN"},
+    )
+
+    filter_glob: bpy.props.StringProperty(
+        default="*.csv",
+        options={"HIDDEN"},
     )
 
     def invoke(self, context, event):
-        # Pre-fill with the directory of the open .blend file, falling back
-        # to the system temp folder when the file hasn't been saved yet.
-        if bpy.data.filepath:
-            import os
-            self.directory = os.path.dirname(bpy.data.filepath)
-        wm = context.window_manager
-        wm.fileselect_add(self)
-        return {"RUNNING_MODAL"}
-
-    def execute(self, context):
         import os
-
-        scene = context.scene
         blend_name = (
             os.path.splitext(os.path.basename(bpy.data.filepath))[0]
             if bpy.data.filepath
             else "scene"
         )
-        out_dir = bpy.path.abspath(self.directory)
+        self.filepath = os.path.join(
+            os.path.dirname(bpy.data.filepath) if bpy.data.filepath else "",
+            f"{blend_name}_scene_report.csv",
+        )
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {"RUNNING_MODAL"}
 
+    def execute(self, context):
         view_layer = context.view_layer
+        scene = context.scene
 
-        # --- Datarefs ---
         dr_rows = xplane_scene_report.collect_datarefs(scene, view_layer)
-        dr_csv = xplane_scene_report.write_csv(
-            dr_rows, xplane_scene_report.DATAREF_FIELDS
-        )
-        dr_path = os.path.join(out_dir, f"{blend_name}_datarefs.csv")
-        with open(dr_path, "w", encoding="utf-8") as f:
-            f.write(dr_csv)
-
-        # --- Manipulators ---
         manip_rows = xplane_scene_report.collect_manipulators(scene, view_layer)
-        manip_csv = xplane_scene_report.write_csv(
-            manip_rows, xplane_scene_report.MANIPULATOR_FIELDS
-        )
-        manip_path = os.path.join(out_dir, f"{blend_name}_manipulators.csv")
-        with open(manip_path, "w", encoding="utf-8") as f:
-            f.write(manip_csv)
+
+        if not dr_rows and not manip_rows:
+            self.report({"WARNING"}, "No datarefs or manipulators found in scene")
+            return {"CANCELLED"}
+
+        csv_content = xplane_scene_report.write_combined_report(dr_rows, manip_rows)
+        out_path = bpy.path.abspath(self.filepath)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(csv_content)
 
         self.report(
             {"INFO"},
-            f"Wrote {len(dr_rows)} dataref(s) to {dr_path} "
-            f"and {len(manip_rows)} manipulator(s) to {manip_path}",
+            f"Wrote {len(dr_rows)} dataref(s) and {len(manip_rows)} manipulator(s) "
+            f"to {out_path}",
         )
         return {"FINISHED"}
 

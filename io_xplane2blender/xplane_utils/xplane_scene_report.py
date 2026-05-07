@@ -10,6 +10,19 @@ import io
 from typing import Dict, List, Optional, Tuple
 
 import bpy
+from io_xplane2blender.xplane_constants import (
+    MANIP_DELTA,
+    MANIP_DRAG_AXIS,
+    MANIP_DRAG_AXIS_DETENT,
+    MANIP_DRAG_AXIS_PIX,
+    MANIP_DRAG_ROTATE,
+    MANIP_DRAG_ROTATE_DETENT,
+    MANIP_DRAG_XY,
+    MANIP_PUSH,
+    MANIP_RADIO,
+    MANIP_TOGGLE,
+    MANIP_WRAP,
+)
 from io_xplane2blender.xplane_helpers import get_action_fcurves
 
 # --- Field name constants ---
@@ -35,6 +48,11 @@ MANIPULATOR_FIELDS = [
     "Dataref 2",
     "Dataref 2 Min",
     "Dataref 2 Max",
+    "Value On",
+    "Value Off",
+    "Value Down",
+    "Value Up",
+    "Value Hold",
     "Command",
     "Positive Command",
     "Negative Command",
@@ -142,21 +160,67 @@ def collect_manipulators(
         if not manip.enabled:
             continue
 
-        rows.append({
+        t = manip.type
+        row = {
             "Object Name": obj.name,
-            "Manipulator Type": manip.type,
+            "Manipulator Type": t,
             "Tooltip": manip.tooltip,
             "Cursor": manip.cursor,
-            "Dataref 1": manip.dataref1,
-            "Dataref 1 Min": manip.v1_min if manip.dataref1 else "",
-            "Dataref 1 Max": manip.v1_max if manip.dataref1 else "",
-            "Dataref 2": manip.dataref2,
-            "Dataref 2 Min": manip.v2_min if manip.dataref2 else "",
-            "Dataref 2 Max": manip.v2_max if manip.dataref2 else "",
-            "Command": manip.command,
-            "Positive Command": manip.positive_command,
-            "Negative Command": manip.negative_command,
-        })
+            "Dataref 1": "",
+            "Dataref 1 Min": "",
+            "Dataref 1 Max": "",
+            "Dataref 2": "",
+            "Dataref 2 Min": "",
+            "Dataref 2 Max": "",
+            "Value On": "",
+            "Value Off": "",
+            "Value Down": "",
+            "Value Up": "",
+            "Value Hold": "",
+            "Command": "",
+            "Positive Command": "",
+            "Negative Command": "",
+        }
+
+        if t in (
+            MANIP_DRAG_XY,
+            MANIP_DRAG_AXIS,
+            MANIP_DRAG_AXIS_PIX,
+            MANIP_DRAG_AXIS_DETENT,
+            MANIP_DRAG_ROTATE,
+            MANIP_DRAG_ROTATE_DETENT,
+        ):
+            row["Dataref 1"] = manip.dataref1
+            row["Dataref 1 Min"] = manip.v1_min
+            row["Dataref 1 Max"] = manip.v1_max
+            if t == MANIP_DRAG_XY:
+                row["Dataref 2"] = manip.dataref2
+                row["Dataref 2 Min"] = manip.v2_min
+                row["Dataref 2 Max"] = manip.v2_max
+        elif t == MANIP_TOGGLE:
+            row["Dataref 1"] = manip.dataref1
+            row["Value On"] = manip.v_on
+            row["Value Off"] = manip.v_off
+        elif t == MANIP_PUSH:
+            row["Dataref 1"] = manip.dataref1
+            row["Value Down"] = manip.v_down
+            row["Value Up"] = manip.v_up
+        elif t == MANIP_RADIO:
+            row["Dataref 1"] = manip.dataref1
+            row["Value Down"] = manip.v_down
+        elif t in (MANIP_DELTA, MANIP_WRAP):
+            row["Dataref 1"] = manip.dataref1
+            row["Value Down"] = manip.v_down
+            row["Value Hold"] = manip.v_hold
+            row["Dataref 1 Min"] = manip.v1_min
+            row["Dataref 1 Max"] = manip.v1_max
+        else:
+            # Command-based types
+            row["Command"] = manip.command
+            row["Positive Command"] = manip.positive_command
+            row["Negative Command"] = manip.negative_command
+
+        rows.append(row)
 
     return rows
 
@@ -170,3 +234,18 @@ def write_csv(rows: List[Dict], fieldnames: List[str]) -> str:
     writer.writeheader()
     writer.writerows(rows)
     return output.getvalue()
+
+
+def write_combined_report(dr_rows: List[Dict], manip_rows: List[Dict]) -> str:
+    """
+    Serialize datarefs and manipulators into a single CSV string.
+
+    Each non-empty section gets its own header row. Sections are separated by
+    a blank line. Sections with no rows are omitted entirely.
+    """
+    sections = []
+    if dr_rows:
+        sections.append(write_csv(dr_rows, DATAREF_FIELDS))
+    if manip_rows:
+        sections.append(write_csv(manip_rows, MANIPULATOR_FIELDS))
+    return "\n".join(sections)
