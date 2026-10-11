@@ -91,6 +91,8 @@ class TestLayersToCollections(XPlaneTestCase):
             if prop.identifier not in {"rna_type", "index", "expanded"}
             and prop.type not in {"COLLECTION", "POINTER"}
         }
+        # Enums with dynamic items have no RNA default, they use their first item
+        defaults["layer_group"] = xplane_constants.LAYER_GROUP_NONE
         defaults["cockpit_region"] = [
             {"expanded": False, "top": 0, "left": 0, "width": 1, "height": 1}
         ] * 4
