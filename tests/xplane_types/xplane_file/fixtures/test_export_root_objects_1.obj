@@ -193,6 +193,7 @@ ATTR_LOD	1000	2000
 # 0 Mesh: root_1
 # MESH: root_1	weight: 0
 # MATERIAL: Material
+ATTR_shiny_rat	0.5
 TRIS	0 36
 	# 1 Mesh: root_1_child_1
 	# MESH: root_1_child_1	weight: 0
@@ -210,6 +211,7 @@ ATTR_LOD	2000	4000
 # 0 Mesh: root_1
 # MESH: root_1	weight: 0
 # MATERIAL: Material
+ATTR_shiny_rat	0.5
 TRIS	0 36
 	# 1 Mesh: root_1_child_1
 	# MESH: root_1_child_1	weight: 0
