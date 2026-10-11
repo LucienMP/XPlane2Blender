@@ -21,6 +21,7 @@ Bug fixes:
 - Export says what happened. A root with nothing in it no longer cancels the whole export silently (#751).
 - Symlinked textures keep their own path (#741). Spaces in texture paths now give a warning (#473).
 - Fixes the Rain panel error when nothing is selected (#752), and DataRefs.txt reading on non-UTF-8 Windows locales (#725).
+- Instanced Scenery Objects warn when X-Plane won't actually instance them: any animation, custom billboard lights, custom spill lights with a dataref, and dataref-driven named or parameterized lights (#368, #489). Checked in X-Plane 12.4.4.
 - The old VLIGHT light types (Default, Flashing, Pulsing, Strobe, Traffic) are all marked deprecated, and exporting them warns: their position ignores parenting and animation. Use Automatic lights instead (#370).
 
 New features, from open upstream pull requests:
