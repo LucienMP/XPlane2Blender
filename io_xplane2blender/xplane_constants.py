@@ -160,6 +160,7 @@ MANIP_DEVICE = "device"
 MANIPULATORS_MOUSE_WHEEL = (
     MANIP_DRAG_XY,
     MANIP_DRAG_AXIS,
+    MANIP_DRAG_ROTATE,  # 1110+, ATTR_manip_wheel works after it (#621)
     MANIP_PUSH,
     MANIP_RADIO,
     MANIP_DELTA,
