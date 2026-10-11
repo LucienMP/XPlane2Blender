@@ -12,6 +12,7 @@ Blender 5.x support:
 - Animation export works with Blender 5's slotted (layered) Actions (#765), including bone dataref animations that live in the Armature's slot. On Blender 4.4/4.5 these bone animations were previously not exported either.
 - Older .blend files update correctly. Blender 5 hides add-on properties from the old dictionary-style access the updater used.
 - Wiper gradient baking works with current Cycles.
+- The bundled `lights.txt` is X-Plane 12.4.4's, so the 13 lights added since (such as the new runway inset lights) are recognised.
 - The X-Plane material panel shows the material's Specular (exported as `ATTR_shiny_rat`). Blender materials always use nodes now, which hides that setting everywhere else.
 
 Bug fixes:
