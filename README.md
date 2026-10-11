@@ -9,7 +9,7 @@ This addon for Blender makes it possible to export models made in Blender to the
 
 ## What's new in 5.0
 Blender 5.x support:
-- Animation export works with Blender 5's slotted (layered) Actions, including bone dataref animations that live in the Armature's slot. On Blender 4.4/4.5 these bone animations were previously not exported either.
+- Animation export works with Blender 5's slotted (layered) Actions (#765), including bone dataref animations that live in the Armature's slot. On Blender 4.4/4.5 these bone animations were previously not exported either.
 - Older .blend files update correctly. Blender 5 hides add-on properties from the old dictionary-style access the updater used.
 - Wiper gradient baking works with current Cycles.
 - The X-Plane material panel shows the material's Specular (exported as `ATTR_shiny_rat`). Blender materials always use nodes now, which hides that setting everywhere else.
@@ -28,6 +28,8 @@ New features, from open upstream pull requests:
 - Export into a folder: an OBJ name ending in `/` exports to that folder using the root's name (#760).
 - Scene report: a CSV of every dataref and manipulator in the scene (#764).
 - Material compatibility checks no longer look at objects outside the root (#761).
+
+Issue and pull request numbers refer to [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender). For the authors of each change, full links, what was left out and why, and a review of the unofficial forum port, see [REVIEW-5.0.md](REVIEW-5.0.md).
 
 ## General Requirements
 - Blender 5.0 or later. Tested with Blender 5.2 LTS.
