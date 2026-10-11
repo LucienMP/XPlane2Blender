@@ -1499,7 +1499,10 @@ def animation_layout(
                         text="",
                         icon="KEY_DEHLT",
                     ).index = i
-                subrow.prop(attr, "value")
+                if is_bone:
+                    bone_dataref_value_layout(subrow, attr, i, obj)
+                else:
+                    subrow.prop(attr, "value")
                 subrow = subbox.row()
                 subrow.prop(attr, "loop")
             else:
@@ -1510,6 +1513,40 @@ def animation_layout(
             subrow.prop(attr, "show_hide_v2")
             subrow = subbox.row()
             subrow.prop(attr, "loop")
+
+def bone_dataref_value_layout(
+    layout: UILayout, dataref, index: int, bone: bpy.types.Bone
+) -> None:
+    """
+    Draws a bone dataref's value with its keyframe state (#738).
+
+    Blender can't make a data path to properties stored on bones, so it
+    can't color their animated fields itself. Like Blender's decorators:
+    a filled diamond is a keyframe on this frame, a dot means animated.
+    The field turns red when the value was changed without keying it, as
+    the change is lost on the next frame change.
+    """
+    armature = bone.id_data
+    data_path = getDatarefValuePath(index, bone)
+    fcurve = findFCurveByPath(get_action_fcurves(armature.animation_data), data_path)
+
+    frame = bpy.context.scene.frame_current
+    icon = "DECORATE"
+    changed = False
+    if fcurve:
+        changed = not math.isclose(
+            fcurve.evaluate(frame), dataref.value, rel_tol=1e-6, abs_tol=1e-6
+        )
+        is_keyed = any(
+            math.isclose(kf.co[0], frame) for kf in fcurve.keyframe_points
+        )
+        icon = "DECORATE_KEYFRAME" if is_keyed else "DECORATE_ANIMATE"
+
+    row = layout.row(align=True)
+    row.alert = changed
+    row.prop(dataref, "value")
+    row.label(text="", icon=icon)
+
 
 def cockpit_layout(
     layout: bpy.types.UILayout, active_material: bpy.types.Material
