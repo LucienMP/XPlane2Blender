@@ -941,7 +941,11 @@ class XPlaneFile:
             # -----------------------------------------------------------------
             # LOD spec #1, this is written before the first ever
             # or subsequent calls to commands.write
+            # X-Plane resets the attribute state at each ATTR_LOD,
+            # so each bucket starts from the state after the header (#763)
+            state_after_header = dict(self.commands.written)
             for lod_bucket_index, lod_bucket in enumerate(defined_buckets):
+                self.commands.written = dict(state_after_header)
                 o += f"ATTR_LOD\t{lod_bucket.near}\t{lod_bucket.far}\n"
                 o += self.commands.write(lod_bucket_index=lod_bucket_index)
         else:
