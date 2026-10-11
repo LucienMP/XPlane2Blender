@@ -28,7 +28,8 @@ class _LightSpillCustomParams:
     def a(self):
         return 1
 
-    size: float
+    # Meters before X-Plane 12, or candela as "<n>cd" from X-Plane 12
+    size: Union[float, str]
     dx: float
     dy: float
     dz: float
@@ -38,20 +39,9 @@ class _LightSpillCustomParams:
     def __str__(self):
         return " ".join(
             chain(
-                map(
-                    floatToStr,
-                    (
-                        self.r,
-                        self.g,
-                        self.b,
-                        self.a,
-                        self.size,
-                        self.dx,
-                        self.dy,
-                        self.dz,
-                        self.width,
-                    ),
-                ),
+                map(floatToStr, (self.r, self.g, self.b, self.a)),
+                (self.size if isinstance(self.size, str) else floatToStr(self.size),),
+                map(floatToStr, (self.dx, self.dy, self.dz, self.width)),
                 (self.dataref,),
             )
         )
@@ -461,7 +451,12 @@ class XPlaneLight(xplane_object.XPlaneObject):
         }:
             p = self.params
             p.r, self.params.g, self.params.b = self.color
-            p.size = self.size
+            # X-Plane 12 reads a spill's size as its intensity, in candela with
+            # a "cd" suffix: a bare size in meters gives little or no light (checked in 12.4.4)
+            if int(bpy.context.scene.xplane.version) >= int(VERSION_1200):
+                p.size = f"{floatToStr(light_data.xplane.param_intensity_new)}cd"
+            else:
+                p.size = self.size
 
             def width_param_new_value() -> float:
                 if light_data.type == "POINT":

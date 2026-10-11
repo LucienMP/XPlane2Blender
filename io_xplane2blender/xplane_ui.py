@@ -1248,7 +1248,11 @@ def light_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
         "POINT",
         "SPOT",
     }:
-        layout.row().prop(light_data.xplane, "size")
+        # X-Plane 12 lights are photometric: the spill's size is its intensity
+        if int(bpy.context.scene.xplane.version) >= int(VERSION_1200):
+            layout.row().prop(light_data.xplane, "param_intensity_new")
+        else:
+            layout.row().prop(light_data.xplane, "size")
         row = layout.row()
         row.prop(light_data.xplane, "dataref")
         draw_dataref_search_window(row, layout)
