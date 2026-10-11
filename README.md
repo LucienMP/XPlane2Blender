@@ -3,24 +3,45 @@
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 
 # Introduction
-This addon for Blender 2.80 and up makes it possible to export models made in Blender to the X-Plane object format (.obj). 
-An experimental importer has been added in 4.2.0-Alpha 1 and can be found here: https://github.com/X-Plane/XPlane2Blender/releases/tag/v4.2.0-alpha.1 
+This addon for Blender makes it possible to export models made in Blender to the X-Plane object format (.obj).
 
-## Contact Us
-The best way to contact us is through [a bug report](https://github.com/X-Plane/XPlane2Blender/issues). Otherwise, e-mail **ted at x-plane dot com**, especially if you're worried about the security of your models while we debug them.
+**This is XPlane2Blender 5.0, an unofficial port of [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender) to Blender 5.x.** Report problems with this version on [this fork's issues](https://github.com/LucienMP/XPlane2Blender/issues), not upstream.
+
+## What's new in 5.0
+Blender 5.x support:
+- Animation export works with Blender 5's slotted (layered) Actions, including bone dataref animations that live in the Armature's slot. On Blender 4.4/4.5 these bone animations were previously not exported either.
+- Older .blend files update correctly. Blender 5 hides add-on properties from the old dictionary-style access the updater used.
+- Wiper gradient baking works with current Cycles.
+- The X-Plane material panel shows the material's Specular (exported as `ATTR_shiny_rat`). Blender materials always use nodes now, which hides that setting everywhere else.
+
+Bug fixes:
+- Removing a dataref no longer moves its keyframes onto the next dataref (#190). Bone dataref keyframes are now linear, like object ones.
+- Attributes are written again in every LOD. Previously, for example, `ATTR_light_level` only applied to the first LOD (#763).
+- Export says what happened. A root with nothing in it no longer cancels the whole export silently (#751).
+- Symlinked textures keep their own path (#741). Spaces in texture paths now give a warning (#473).
+- Fixes the Rain panel error when nothing is selected (#752), and DataRefs.txt reading on non-UTF-8 Windows locales (#725).
+
+New features, from open upstream pull requests:
+- `ATTR_manip_device` touch screen manipulator, X-Plane 12.1+ (#767). Loop values can now be negative.
+- "Blended" layer group for glass scenery objects, X-Plane 12.21+ (#753).
+- Dither strength for detail textures (decals) (#759).
+- Export into a folder: an OBJ name ending in `/` exports to that folder using the root's name (#760).
+- Scene report: a CSV of every dataref and manipulator in the scene (#764).
+- Material compatibility checks no longer look at objects outside the root (#761).
 
 ## General Requirements
-- Blender 2.80-83. 2.90 seems to work but is not officially supported
-- For the greatest stability, use the latest non-beta version of [XPlane2Blender](https://github.com/X-Plane/XPlane2Blender/releases/latest)
+- Blender 5.0 or later. Tested with Blender 5.2 LTS.
+- X-Plane 12, although older X-Plane versions can still be targeted in Scene settings.
 
-XPlane2Blender for Blender 2.79 can still be downloaded from the releases page, but it isn't supported anymore. An experimental converter for Blender 2.49 projects is also available and is supported.
+## Contact Us
+For this 5.0 port, please open [an issue on this fork](https://github.com/LucienMP/XPlane2Blender/issues). The original add-on is maintained at [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender).
 
 ## Automatic Installation
 **Note: This process will override an existing copy of the plugin!** To backup your current version of the plugin, see the manual instructions in the [manual](https://xp2b-docs.gitbook.io/xplane2blender-docs/index-3/34_installation). **Always make backups of your work, especially when beta testing, as newer versions may not be backwards compatibility.** Read the release notes for more details.
 
-1. Download the [addon](https://github.com/X-Plane/XPlane2Blender/releases/latest) with a name like ``io_xplane2blender_4_0_0-rc_1-89_20200910152046.zip``. **Do not download the .zip file called "Source Code", do not unzip the io_xplane2blender .zip file**
-2. In Blender, open up the Preferences, go to the Addons tab, and click at the bottom "Install From File..."
-3. Using the file picker, find the .zip file and click "Install From File...". This will automatically unzip to the addons folder
+1. Download the addon .zip from [this fork's releases](https://github.com/LucienMP/XPlane2Blender/releases), or build it with `python mkbuild.py`. **Do not download the .zip file called "Source Code", do not unzip the io_xplane2blender .zip file**
+2. In Blender, open Edit > Preferences > Add-ons, and in the drop-down menu at the top right choose "Install from Disk..."
+3. Using the file picker, find the .zip file and click "Install from Disk". This will automatically unzip it to the add-ons folder
 4. Ensure the checkbox next to the words "Import-Export: Export: X-Plane (.obj)" is checked
 5. **Restart Blender even if you see the UI change**
 6. Begin using XPlane2Blender!
