@@ -20,6 +20,7 @@ Bug fixes:
 - Export says what happened. A root with nothing in it no longer cancels the whole export silently (#751).
 - Symlinked textures keep their own path (#741). Spaces in texture paths now give a warning (#473).
 - Fixes the Rain panel error when nothing is selected (#752), and DataRefs.txt reading on non-UTF-8 Windows locales (#725).
+- The old VLIGHT light types (Default, Flashing, Pulsing, Strobe, Traffic) are all marked deprecated, and exporting them warns: their position ignores parenting and animation. Use Automatic lights instead (#370).
 
 New features, from open upstream pull requests:
 - `ATTR_manip_device` touch screen manipulator, X-Plane 12.1+ (#767). Loop values can now be negative.
