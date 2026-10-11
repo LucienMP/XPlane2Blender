@@ -1,0 +1,10 @@
+backup/
+results/
+objects/
+dsf_full/
+dsf_empty/
+dsf_*.txt
+plugin/*.xpl
+plugin/*.obj
+plugin/*.lib
+plugin/*.exp
