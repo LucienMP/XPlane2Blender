@@ -16,6 +16,7 @@ Blender 5.x support:
 
 Bug fixes:
 - Removing a dataref no longer moves its keyframes onto the next dataref (#190). Bone dataref keyframes are now linear, like object ones.
+- The Bone panel shows whether a dataref value is keyed (◆), animated (◇), or changed without re-keying (red field). Blender can't colour these itself (#738).
 - Attributes are written again in every LOD. Previously, for example, `ATTR_light_level` only applied to the first LOD (#763).
 - Export says what happened. A root with nothing in it no longer cancels the whole export silently (#751).
 - Symlinked textures keep their own path (#741). Spaces in texture paths now give a warning (#473).

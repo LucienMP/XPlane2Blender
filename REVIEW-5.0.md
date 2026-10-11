@@ -26,7 +26,7 @@ The unofficial forum port reviewed in section 2 is kept unchanged on the branch 
 | **XPlane2Blender**, the original add-on (GPL-3.0) | Ted Greene, Ben Supnik, Amy Parent, Maya F. Eroğlu, and contributors (Laminar Research / X-Plane) | <https://github.com/X-Plane/XPlane2Blender> | **Yes, as the base.** 5.0 starts from upstream `master` at commit [`ee03ed6`](https://github.com/X-Plane/XPlane2Blender/commit/ee03ed6a96601199d7bccf3d65fb1378664e828e) ("Start 4.5.0 development"). |
 | **"xplane2blender v5 unnofficial for Blender 5+"**, an unofficial port by xjs36uk, made with ChatGPT's help, posted in the *Utilities* file section of the X-Plane.Org forums in April 2026 | **xjs36uk** (X-Plane.Org forum user). The port's own `bl_info` still credits the original authors. | <https://forums.x-plane.org/files/file/99499-xplane2blender-v5-unnofficial-for-blender-5> | **No, not merged.** It was reviewed in full (section 2). Its central idea was right, but a cleaner implementation of the same fix (#765) was used instead. |
 | **Open pull requests** on X-Plane/XPlane2Blender | Rob P, ILIAS TSELIOS, Connor Russell, galvedro, outbaacker | [open pull requests](https://github.com/X-Plane/XPlane2Blender/pulls) | 7 of 9 adopted (section 3) |
-| **Open issues** on X-Plane/XPlane2Blender | Various reporters, listed per issue | [open issues](https://github.com/X-Plane/XPlane2Blender/issues) | 15 fixed, 1 not reproducible, the rest triaged (section 4 and the appendix) |
+| **Open issues** on X-Plane/XPlane2Blender | Various reporters, listed per issue | [open issues](https://github.com/X-Plane/XPlane2Blender/issues) | 16 fixed, 1 not reproducible, the rest triaged (section 4 and the appendix) |
 | **Fixes and tests for 5.0** | Lucien Murray-Pitts ([LucienMP](https://github.com/LucienMP)), with Claude Code (commits carry a `Co-Authored-By: Claude` trailer) | <https://github.com/LucienMP/XPlane2Blender> | Yes, sections 3–5 |
 
 ### What the forum port contains
@@ -117,6 +117,7 @@ All 9 pull requests open on X-Plane/XPlane2Blender in October 2026 were reviewed
 | [#577](https://github.com/X-Plane/XPlane2Blender/issues/577) | Validate TEXTURE field that texture does not have spaces in it | [@tngreene](https://github.com/tngreene) | as #473 | Same as #473. |
 | [#725](https://github.com/X-Plane/XPlane2Blender/issues/725) | Dataref could not be parsed | [@pilotRL](https://github.com/pilotRL) | [`5688f8d`](https://github.com/LucienMP/XPlane2Blender/commit/5688f8d90722106a40a28274fa4cb97b5118f0ba) | **Partly fixed.** `DataRefs.txt` is now read as UTF-8 regardless of the Windows code page. One invalid line still makes the parser reject the whole file. |
 | [#370](https://github.com/X-Plane/XPlane2Blender/issues/370) | Deprecate VLIGHT from XPlaneLights | [@tngreene](https://github.com/tngreene) | [`c84d1a8`](https://github.com/LucienMP/XPlane2Blender/commit/c84d1a887e9cfddf477f0604e58f34d5da282922) | **Default** is now labelled deprecated, like Flashing, Pulsing, Strobe and Traffic already were. Exporting any of these old VLIGHT light types gives a warning, because they are written from the light's raw location: parenting, root offsets and animation are ignored (noted by Ted Greene in the issue). Use **Automatic** instead. Exported files don't change. |
+| [#738](https://github.com/X-Plane/XPlane2Blender/issues/738) | Dataref values in Bone Tab aren't colored | [@skijeffory](https://github.com/skijeffory) | [`23a4987`](https://github.com/LucienMP/XPlane2Blender/commit/23a4987a281ff79096bc5606fc4df7eb7c802e9b) | **Worked around.** The cause is a Blender limitation: Blender can't build a data path to add-on properties stored on bones (`path_from_id()` reports "does not support path creation"), so it can't colour their animated fields. Keyframes always played back and exported correctly. The Bone panel now shows the state next to **Value** like Blender's own markers: ◆ keyframe on this frame, ◇ animated, and a **red field** when the value was changed without re-keying, which would otherwise be lost on the next frame change. Blender's native yellow/green/orange colours aren't available to add-ons. |
 
 ### Not reproducible on Blender 5.2
 
@@ -128,7 +129,6 @@ All 9 pull requests open on X-Plane/XPlane2Blender in October 2026 were reviewed
 
 | Issue | Title | Reported by | State | Effect of fixing it |
 |---|---|---|---|---|
-| [#738](https://github.com/X-Plane/XPlane2Blender/issues/738) | Dataref values in Bone Tab aren't colored | [@skijeffory](https://github.com/skijeffory) | **Confirmed still present** in Blender 5.2 | Cosmetic. Keyframed bone dataref values would show as animated in the panel. Bone keyframes do export correctly. |
 | [#755](https://github.com/X-Plane/XPlane2Blender/issues/755) | Automatic light with spot_params_bb_pm : wrong intensity parameter | [@cpot](https://github.com/cpot) | Needs Laminar to confirm the X-Plane 12 rule | Correct intensity for this light. Currently `cd` is added to every automatic light's intensity. |
 | [#621](https://github.com/X-Plane/XPlane2Blender/issues/621) | Add wheel support for Drag Rotate manipulators | [@tngreene](https://github.com/tngreene) | Needs spec confirmation | Mouse-wheel support for Drag Rotate manipulators |
 | [#709](https://github.com/X-Plane/XPlane2Blender/issues/709) | Vertex Optimization on Export | [@ian-m-carr](https://github.com/ian-m-carr) | Not started; it **changes output** | Shares identical vertices between objects. The reporter saw about a third as many VT lines on a cockpit. |
@@ -156,7 +156,7 @@ These were found by running the upstream test suite and the UI on Blender 5.2.2.
 - **Blender:** 5.2.2 LTS on Windows 11.
 - **Upstream test suite:** **166 of 166 test files pass**, including 8 new ones covering the operators, LOD state, the Blended layer group, `ATTR_manip_device`, mirrored objects and the VLIGHT deprecation. The run uses a parallel runner, with `tests/utils/lights_parser` run on its own because it temporarily replaces `lights.txt`.
 - **Installation:** the release zip installs with Blender's *Install from Disk* into a clean profile, enables, and exports a valid OBJ.
-- **UI:** in a real Blender window, every X-Plane panel (Scene, Render, Object, Data, Material, Bone) was drawn for a mesh, a light and an armature. None raised an error.
+- **UI:** in a real Blender window, every X-Plane panel (Scene, Render, Object, Data, Material, Bone) was drawn for a mesh, a light and an armature. None raised an error. The bone keyframe-state markers (#738) were checked on a keyframe, between keyframes, and after an unkeyed change.
 - **Not tested:** loading the exported OBJs in X-Plane itself (outputs are checked against the upstream test fixtures), and any Blender version other than 5.2.
 
 ---
@@ -200,7 +200,7 @@ Section 4 has more detail on the fixed and the most important open ones.
 | [#758](https://github.com/X-Plane/XPlane2Blender/issues/758) | XP2B 4.4.0 breakage in Blender >5.0.0 | [@JT8D-17](https://github.com/JT8D-17) | **Fixed in 5.0** |
 | [#754](https://github.com/X-Plane/XPlane2Blender/issues/754) | Appears bone animations are still not compatible with 4.5 | [@kkaigle](https://github.com/kkaigle) | **Fixed in 5.0** |
 | [#743](https://github.com/X-Plane/XPlane2Blender/issues/743) | Bone keyframes for datarefs | [@Im-Unknown-now](https://github.com/Im-Unknown-now) | **Fixed in 5.0** |
-| [#738](https://github.com/X-Plane/XPlane2Blender/issues/738) | Dataref values in Bone Tab aren't colored | [@skijeffory](https://github.com/skijeffory) |  |
+| [#738](https://github.com/X-Plane/XPlane2Blender/issues/738) | Dataref values in Bone Tab aren't colored | [@skijeffory](https://github.com/skijeffory) | **Fixed in 5.0** (worked around) |
 | [#565](https://github.com/X-Plane/XPlane2Blender/issues/565) | 280: EEVEE vs Cycles? | [@tngreene](https://github.com/tngreene) | **Fixed in 5.0** |
 | [#746](https://github.com/X-Plane/XPlane2Blender/issues/746) | Error adding extension / plugin into Blender 4.4 | [@GitDaBytes](https://github.com/GitDaBytes) |  |
 | [#338](https://github.com/X-Plane/XPlane2Blender/issues/338) | Remove relative imports and circular dependencies, make XP2B fully reloadable | [@tngreene](https://github.com/tngreene) |  |
