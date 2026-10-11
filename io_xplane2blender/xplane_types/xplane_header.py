@@ -178,8 +178,12 @@ class XPlaneHeader:
         ]
         xplane_version = int(bpy.context.scene.xplane.version)
 
-        # layer groups
-        if self.xplaneFile.options.layer_group != LAYER_GROUP_NONE:
+        # layer groups, '' when the X-Plane version doesn't have the chosen one
+        if self.xplaneFile.options.layer_group == "":
+            logger.warn(
+                f"{self.xplaneFile.filename}'s Layer Group isn't available in this X-Plane version, it won't be exported"
+            )
+        elif self.xplaneFile.options.layer_group != LAYER_GROUP_NONE:
             self.attributes["ATTR_layer_group"].setValue(
                 (
                     self.xplaneFile.options.layer_group,
