@@ -3,7 +3,7 @@
 import os
 import os.path
 import sys
-from typing import IO, Any, Optional
+from typing import IO, Any, Optional, Set
 
 import bpy
 import mathutils
@@ -103,45 +103,58 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             bpy.context.view_layer,
             self.only_selected_roots            
         )
-        for xplaneFile in xplaneFiles:
-            if not self._writeXPlaneFile(xplaneFile, export_directory):
-                if logger.hasErrors():
-                    self._endLogging()
-                    showLogDialog()
-
-                if (
-                    bpy.context.scene.xplane.plugin_development
-                    and bpy.context.scene.xplane.dev_continue_export_on_error
-                ):
-                    logger.info(
-                        "Continuing export despite error in %s" % xplaneFile.filename
-                    )
-                    logger.clearMessages()
+        exported = 0
+        try:
+            for xplaneFile in xplaneFiles:
+                if not xplaneFile.get_xplane_objects():
+                    logger.warn(f"{xplaneFile.filename} has nothing to export, skipped")
                     continue
+                if not self._writeXPlaneFile(xplaneFile, export_directory):
+                    if (
+                        bpy.context.scene.xplane.plugin_development
+                        and bpy.context.scene.xplane.dev_continue_export_on_error
+                    ):
+                        logger.info(
+                            "Continuing export despite error in %s" % xplaneFile.filename
+                        )
+                        logger.clearMessages()
+                        continue
+                    else:
+                        return self._cancel()
                 else:
-                    return {"CANCELLED"}
-
-        # return to stored frame
-        bpy.context.scene.frame_set(frame=currentFrame)
-        bpy.context.view_layer.update()
-
-        # TODO: enable when log dialog box is working
-        # if logger.hasErrors() or logger.hasWarnings():
-        #     showLogDialog()
+                    exported += 1
+        finally:
+            # return to stored frame
+            bpy.context.scene.frame_set(frame=currentFrame)
+            bpy.context.view_layer.update()
 
         if not xplaneFiles:
             logger.error(
                 "Could not find any Exportable Collections or Objects, did you forget check 'Exportable Collection' or 'Exportable Object'?"
             )
-            self._endLogging()
-            return {"CANCELLED"}
+            return self._cancel()
         elif logger.hasErrors():
-            self._endLogging()
-            return {"CANCELLED"}
-        elif not logger.hasErrors() and xplaneFiles:
+            return self._cancel()
+        else:
             logger.success("Export finished without errors")
             self._endLogging()
+            self.report({"INFO"}, f"Exported {exported} X-Plane OBJ(s)")
             return {"FINISHED"}
+
+    def _cancel(self) -> Set[str]:
+        """Ends logging, and shows the errors to the user"""
+        self._endLogging()
+        # WARNING, since an ERROR report makes bpy.ops raise for scripts
+        if logger.hasErrors():
+            self.report(
+                {"WARNING"},
+                f"Export failed: {logger.findErrors()[0]['message']}"
+                " (see the 'xplane2blender.log' text block)",
+            )
+            showLogDialog()
+        else:
+            self.report({"WARNING"}, "Export cancelled")
+        return {"CANCELLED"}
 
     def _startLogging(self):
         debug = getDebug()
