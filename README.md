@@ -4,7 +4,7 @@
 
 This branch holds the unofficial "xplane2blender v5 unnofficial for Blender 5+" port exactly as it was received, so it can be compared with what XPlane2Blender 5.0 actually adopted.
 
-- **Source:** <https://forums.x-plane.org/files/file/99499-xplane2blender-v5-unnofficial-for-blender-5> (X-Plane.Org forums, *Utilities*, April 2026), made with ChatGPT's help and adapted from upstream [`v4.4.0-rc-1`](https://github.com/X-Plane/XPlane2Blender/tree/v4.4.0-rc-1).
+- **Source:** <https://forums.x-plane.org/files/file/99499-xplane2blender-v5-unnofficial-for-blender-5> posted by **xjs36uk** on the X-Plane.Org forums (*Utilities*, April 2026), made with ChatGPT's help and adapted from upstream [`v4.4.0-rc-1`](https://github.com/X-Plane/XPlane2Blender/tree/v4.4.0-rc-1).
 - **The port's changes:** commit [`a826e7f`](https://github.com/LucienMP/XPlane2Blender/commit/a826e7f0e02d0c779202acb2c5d422baf6a37a27) is that tag with the port's files copied over unchanged.
 - **Review:** what the port got right, what it broke, why it wasn't merged, and where every part of 5.0 came from (authors, links and effects) is in **[REVIEW-5.0.md on `master`](https://github.com/LucienMP/XPlane2Blender/blob/master/REVIEW-5.0.md)**.
 
