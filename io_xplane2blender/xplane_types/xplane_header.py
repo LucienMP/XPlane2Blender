@@ -1085,7 +1085,8 @@ class XPlaneHeader:
             # 7. Invalid paths are a validation error -> Path.resolve throws OSError
             # 8. Paths are minimal, "./path/tex.png" is "path/tex.png" -> Path.resolve
             # 10. Absolute paths are okay as long as we can make a relative path os.path.relpath
-            rel_path = os.path.relpath(res_path.resolve(), export_dir).replace(
+            # abspath, not resolve, which would follow symlinks (#741)
+            rel_path = os.path.relpath(os.path.abspath(res_path), export_dir).replace(
                 "\\", "/"
             )
         except OSError:
@@ -1102,6 +1103,11 @@ class XPlaneHeader:
             raise
         else:
             os.chdir(old_cwd)
+            # X-Plane reads up to the first whitespace (#473)
+            if any(c.isspace() for c in rel_path):
+                logger.warn(
+                    f"Resource path '{rel_path}' contains spaces, X-Plane will only read up to the first one"
+                )
             return rel_path
 
     # Method: _getCanonicalTexturePath
