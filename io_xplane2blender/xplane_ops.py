@@ -52,19 +52,23 @@ def findFCurveByPath(fcurves, path):
 #
 # Todos:
 #   - not working
+from .xplane_helpers import get_all_fcurves
+
+from .xplane_helpers import set_fcurve_keyframe_value
+
 def makeKeyframesLinear(obj, path):
     fcurve = None
 
     if (
         obj.animation_data != None
         and obj.animation_data.action != None
-        and len(obj.animation_data.action.fcurves) > 0
     ):
-        fcurve = findFCurveByPath(obj.animation_data.action.fcurves, path)
+        fcurves = get_all_fcurves(obj.animation_data.action)
+
+        if len(fcurves) > 0:
+            fcurve = findFCurveByPath(fcurves, path)
 
         if fcurve:
-            # find keyframe
-            keyframe = None
             for keyframe in fcurve.keyframe_points:
                 keyframe.interpolation = "LINEAR"
 
@@ -302,6 +306,8 @@ class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
     index: bpy.props.IntProperty()
 
     def execute(self, context):
+        from .xplane_helpers import get_all_fcurves
+
         obj = context.object
         obj.xplane.datarefs.remove(self.index)
 
@@ -309,16 +315,27 @@ class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
 
         # remove FCurves too
         if (
-            obj.animation_data != None
-            and obj.animation_data.action != None
-            and len(obj.animation_data.action.fcurves) > 0
+            obj.animation_data is not None
+            and obj.animation_data.action is not None
         ):
-            fcurve = findFCurveByPath(obj.animation_data.action.fcurves, path)
+            action = obj.animation_data.action
+            fcurves = get_all_fcurves(action)
+
+            fcurve = findFCurveByPath(fcurves, path)
             if fcurve:
-                obj.animation_data.action.fcurves.remove(fcurve=fcurve)
+                try:
+                    # Blender ≤4.x
+                    action.fcurves.remove(fcurve)
+                except AttributeError:
+                    # Blender 5.2+: remove from channelbags
+                    for layer in action.layers:
+                        for strip in layer.strips:
+                            for bag in strip.channelbags:
+                                if fcurve in bag.fcurves:
+                                    bag.fcurves.remove(fcurve)
+                                    break
 
         return {"FINISHED"}
-
 
 # Class: OBJECT_OT_add_xplane_dataref_keyframe
 # Adds a Keyframe to the value of a <XPlaneDataref> of an object.
@@ -336,13 +353,16 @@ class OBJECT_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
         path = getDatarefValuePath(self.index)
         value = obj.xplane.datarefs[self.index].value
 
-        if "XPlane Datarefs" not in obj.animation_data.action.groups:
-            obj.animation_data.action.groups.new("XPlane Datarefs")
+        
+        path = f'xplane.datarefs[{self.index}].value'
 
-        obj.xplane.datarefs[self.index].keyframe_insert(
-            data_path="value", group="XPlane Datarefs"
+        path = f'xplane.datarefs[{self.index}].value'
+
+        obj.keyframe_insert(
+        data_path=path
         )
-        makeKeyframesLinear(obj, path)
+        
+        #makeKeyframesLinear(obj, path)
 
         return {"FINISHED"}
 
@@ -435,85 +455,103 @@ class BONE_OT_add_xplane_dataref(bpy.types.Operator):
 
 # Class: BONE_OT_remove_xplane_dataref
 # Removes a <XPlaneDataref> from a Blender bone.
-class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
-    bl_label = "Remove Dataref"
-    bl_idname = "bone.remove_xplane_dataref"
-    bl_description = "Remove the X-Plane Dataref"
-
-    index: bpy.props.IntProperty()
-
-    def execute(self, context):
-        bone = context.bone
-        obj = context.object
-        bone.xplane.datarefs.remove(self.index)
-        path = getDatarefValuePath(self.index, bone)
-
-        # remove FCurves too
-        if (
-            obj.animation_data != None
-            and obj.animation_data.action != None
-            and len(obj.animation_data.action.fcurves) > 0
-        ):
-            fcurve = findFCurveByPath(obj.animation_data.action.fcurves, path)
-            if fcurve:
-                obj.animation_data.action.fcurves.remove(fcurve=fcurve)
-
-        return {"FINISHED"}
-
-
-# Class: BONE_OT_add_xplane_dataref_keyframe
-# Adds a Keyframe to the value of a <XPlaneDataref> of a bone.
 class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
-    bl_label = "Add Dataref keyframe"
+    bl_label = "Add Dataref Keyframe"
     bl_idname = "bone.add_xplane_dataref_keyframe"
     bl_description = "Add/Update an X-Plane Dataref keyframe"
 
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        armature = context.object
+        pose_bone = context.active_pose_bone
+
+        if not pose_bone or not armature:
+            self.report({"ERROR"}, "No active pose bone")
+            return {"CANCELLED"}
+
+        # Get the underlying bone data
+        bone = armature.data.bones.get(pose_bone.name)
+        if not bone:
+            self.report({"ERROR"}, "Bone data not found")
+            return {"CANCELLED"}
+
+        prop_name = f"xplane_dataref_{self.index}"
+
+        # --- Ensure property exists on the pose bone ---
+        if prop_name not in pose_bone:
+            # Insert a temporary keyframe at the current frame to allow value assignment
+            pose_bone[prop_name] = 0.0
+            frame = context.scene.frame_current
+            pose_bone.keyframe_insert(data_path=f'["{prop_name}"]', frame=frame)
+
+        # --- Assign value from bone dataref ---
+        try:
+            value = bone.xplane.datarefs[self.index].value
+        except:
+            value = 0.0
+
+        # --- Critical: assign value after keyframe exists ---
+        pose_bone[prop_name] = value
+
+        # --- Insert keyframe for the value ---
+        frame = context.scene.frame_current
+        pose_bone.keyframe_insert(data_path=f'["{prop_name}"]', frame=frame)
+
+        print("SET PROP:", prop_name, value, "FRAME:", frame)
+
+        return {"FINISHED"}
+
+# Class: BONE_OT_add_xplane_dataref_keyframe
+# Adds a Keyframe to the value of a <XPlaneDataref> of a bone.
+
     # index here refers to the index of the datarefs collection,
     # NOT the keyframe index
     index: bpy.props.IntProperty()
 
-    # bpy.data.objects["Armature"].data.keyframe_insert(data_path='bones["Bone"].my_prop_group.nested', group="Nested Property")
-    def execute(self, context):
-        bone = (
-            context.active_bone
-        )  # context.bone is not always available, for instance, during test_creation_helpers
-        # Other uses will be replaced as needed. context.object doesn't appear to be affected
-        # See also: https://blender.stackexchange.com/q/31759
-        armature = context.object
-        path = getDatarefValuePath(self.index, bone)
+class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
+    bl_label = "Add Dataref Keyframe"
+    bl_idname = "bone.add_xplane_dataref_keyframe"
+    bl_description = "Add/Update an X-Plane Dataref keyframe"
 
-        groupName = "XPlane Datarefs " + bone.name
-
-        if groupName not in armature.animation_data.action.groups:
-            armature.animation_data.action.groups.new(groupName)
-
-        armature.data.keyframe_insert(data_path=path, group=groupName)
-
-        return {"FINISHED"}
-
-
-# Class: BONE_OT_remove_xplane_dataref_keyframe
-# Removes a Keyframe from the value of a <XPlaneDataref> of a bone.
-class BONE_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
-    bl_label = "Remove Dataref keyframe"
-    bl_idname = "bone.remove_xplane_dataref_keyframe"
-    bl_description = "Remove the X-Plane Dataref keyframe"
-
-    # index here refers to the index of the datarefs collection,
-    # NOT the keyframe index
     index: bpy.props.IntProperty()
 
     def execute(self, context):
-        bone = context.bone
-        path = getDatarefValuePath(self.index)
         armature = context.object
-        path = getDatarefValuePath(self.index, bone)
-        armature.data.keyframe_delete(
-            data_path=path, group="XPlane Datarefs " + bone.name
-        )
+        if not armature:
+            self.report({"ERROR"}, "No active object")
+            return {"CANCELLED"}
+
+        if armature.mode != 'POSE':
+            bpy.ops.object.mode_set(mode='POSE')
+
+        pose_bone = context.active_pose_bone
+        if not pose_bone:
+            self.report({"ERROR"}, "No active pose bone")
+            return {"CANCELLED"}
+
+        bone = armature.data.bones.get(pose_bone.name)
+        if not bone:
+            self.report({"ERROR"}, "Bone data not found")
+            return {"CANCELLED"}
+
+        prop_name = f"xplane_dataref_{self.index}"
+
+        if prop_name not in pose_bone:
+            pose_bone[prop_name] = 0.0
+
+        # Get value from bone's X-Plane dataref
+        try:
+            value = bone.xplane.datarefs[self.index].value
+        except:
+            value = 0.0
+
+        # Assign value and keyframe
+        frame = context.scene.frame_current
+        pose_bone[prop_name] = value
+        pose_bone.keyframe_insert(data_path=f'["{prop_name}"]')
 
         return {"FINISHED"}
-
 
 # Class: OBJECT_OT_add_xplane_object_condition
 # Adds a custom attribute to a Blender Object.
@@ -1004,6 +1042,145 @@ class XPLANE_OT_bake_wiper_gradient_texture(bpy.types.Operator):
             EXPORT_TYPE_COCKPIT,
         }
 
+# Removes a keyframe from a <XPlaneDataref> of a bone.
+class BONE_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
+    bl_label = "Remove Dataref Keyframe"
+    bl_idname = "bone.remove_xplane_dataref_keyframe"
+    bl_description = "Remove the X-Plane Dataref Keyframe"
+
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        bone = context.active_bone
+        armature = context.object
+
+        # IMPORTANT: match the SAME path used when inserting
+        path = f'pose.bones["{bone.name}"].xplane.datarefs[{self.index}].value'
+
+        try:
+            armature.keyframe_delete(data_path=path)
+        except Exception as e:
+            print("KEYFRAME DELETE ERROR:", e)
+
+        return {"FINISHED"}
+
+class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
+    bl_label = "Add Dataref Keyframe"
+    bl_idname = "bone.add_xplane_dataref_keyframe"
+    bl_description = "Add/Update an X-Plane Dataref keyframe"
+
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        armature = context.object
+
+        if not armature:
+            self.report({"ERROR"}, "No active object")
+            return {"CANCELLED"}
+
+        # Ensure Pose Mode
+        if armature.mode != 'POSE':
+            bpy.ops.object.mode_set(mode='POSE')
+
+        pose_bone = context.active_pose_bone
+
+        if not pose_bone:
+            self.report({"ERROR"}, "No active pose bone")
+            return {"CANCELLED"}
+
+        bone = armature.data.bones.get(pose_bone.name)
+        if not bone:
+            self.report({"ERROR"}, "Bone data not found")
+            return {"CANCELLED"}
+
+        prop_name = f"xplane_dataref_{self.index}"
+
+        # Ensure property exists
+        if prop_name not in pose_bone:
+            pose_bone[prop_name] = 0.0
+
+        # Get value from dataref UI
+        try:
+            value = bone.xplane.datarefs[self.index].value
+        except:
+            value = 0.0
+
+        # Assign value BEFORE keyframing
+        frame = context.scene.frame_current
+        pose_bone[prop_name] = value
+
+        print("SET PROP:", prop_name, value, "FRAME:", frame)
+
+        # Insert keyframe
+        pose_bone.keyframe_insert(
+            data_path=f'["{prop_name}"]'
+        )
+
+        return {"FINISHED"}
+
+class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
+    bl_label = "Add Dataref Keyframe"
+    bl_idname = "bone.add_xplane_dataref_keyframe"
+    bl_description = "Add/Update an X-Plane Dataref keyframe"
+
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+
+class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
+    bl_label = "Remove Dataref"
+    bl_idname = "bone.remove_xplane_dataref"
+    bl_description = "Remove an X-Plane Dataref from a bone"
+
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        pose_bone = context.active_pose_bone
+        if not pose_bone:
+            self.report({"ERROR"}, "No active pose bone")
+            return {"CANCELLED"}
+
+        prop_name = f"xplane_dataref_{self.index}"
+
+        if prop_name in pose_bone:
+            del pose_bone[prop_name]
+
+            if pose_bone.animation_data and pose_bone.animation_data.action:
+                action = pose_bone.animation_data.action
+                for fc in list(action.fcurves):
+                    if fc.data_path == f'["{prop_name}"]':
+                        action.fcurves.remove(fc)
+
+            self.report({"INFO"}, f"Removed {prop_name}")
+        else:
+            self.report({"WARNING"}, f"{prop_name} not found")
+
+        return {"FINISHED"}
+
+    def execute(self, context):
+        pose_bone = context.active_pose_bone
+        if not pose_bone:
+            self.report({"ERROR"}, "No active pose bone")
+            return {"CANCELLED"}
+
+        prop_name = f"xplane_dataref_{self.index}"
+
+        if prop_name in pose_bone:
+            del pose_bone[prop_name]
+
+            if pose_bone.animation_data and pose_bone.animation_data.action:
+                action = pose_bone.animation_data.action
+                for fc in list(action.fcurves):
+                    if fc.data_path == f'["{prop_name}"]':
+                        action.fcurves.remove(fc)
+
+            self.report({"INFO"}, f"Removed {prop_name}")
+        else:
+            self.report({"WARNING"}, f"{prop_name} not found")
+
+        return {"FINISHED"}
 
 _ops = (
     COLLECTION_OT_add_xplane_export_path_directive,

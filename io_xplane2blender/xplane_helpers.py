@@ -1,3 +1,4 @@
+
 import datetime
 import itertools
 import os
@@ -33,6 +34,41 @@ Something that has a .children property. A collection and object's
 children are not compatible
 """
 BlenderParentType = Union[bpy.types.Collection, bpy.types.Object]
+
+def get_all_fcurves(action):
+    """
+    Compatibility wrapper for Blender 4.x and 5.2+ layered actions
+    """
+    if action is None:
+        return []
+
+    # Old Blender (works as-is)
+    if hasattr(action, "fcurves"):
+        return list(action.fcurves)
+
+    # New Blender 5.2+
+    fcurves = []
+
+    if hasattr(action, "layers"):
+        for layer in action.layers:
+            for strip in getattr(layer, "strips", []):
+                for chbag in getattr(strip, "channelbags", []):
+                    fcurves.extend(getattr(chbag, "fcurves", []))
+
+    return fcurves
+
+def set_fcurve_keyframe_value(action, data_path, frame, value):
+    fcurves = get_all_fcurves(action)
+
+    for f in fcurves:
+        if f.data_path == data_path:
+            for kp in f.keyframe_points:
+                if int(kp.co[0]) == int(frame):
+                    kp.co[1] = value
+                    kp.handle_left[1] = value
+                    kp.handle_right[1] = value
+                    return True
+    return False
 
 
 class UnwriteableXPlaneType(ValueError):

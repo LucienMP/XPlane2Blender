@@ -569,6 +569,7 @@ class XPlaneDataref(bpy.types.PropertyGroup):
         description = "Value",
         default = 0.0,
         precision = 6
+
     )
 
     loop: bpy.props.FloatProperty(

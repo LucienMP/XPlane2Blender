@@ -22,7 +22,7 @@ CURRENT_BUILD_TYPE_VERSION = 1
 CURRENT_DATA_MODEL_VERSION = 121
 
 # The build number, hardcoded by the build script when there is one, otherwise it is xplane_constants.BUILD_NUMBER_NONE
-CURRENT_BUILD_NUMBER = xplane_constants.BUILD_NUMBER_NONE
+CURRENT_BUILD_NUMBER = "20250701124556"
 
 
 def getDebug() -> bool:

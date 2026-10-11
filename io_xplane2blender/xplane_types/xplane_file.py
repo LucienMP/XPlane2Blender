@@ -145,7 +145,7 @@ class LocRotPerFrame:
     rotation: Union[
         mathutils.Euler, mathutils.Quaternion, Tuple[float, float, float, float]
     ]
-
+    datarefs: dict = dataclasses.field(default_factory=dict)  # ✅ ADD THIS
 
 ObjectBoneNameKey = Tuple[str, str]
 FrameToLocRotPerFrame = Dict[int, LocRotPerFrame]
@@ -159,16 +159,12 @@ _all_keyframe_infos: Dict[
     str, Dict[ObjectBoneNameKey, FrameToLocRotPerFrame]
 ] = collections.defaultdict(dict)
 
+from ..xplane_helpers import get_all_fcurves
 
 def _pre_scan_all_keyframes():
     """Returns a copy of all this scene's LocRotPerFrame, scanning for it as needed"""
 
-    ###--- THIS IS A HOTPATH -------------------------------------------------
-    # Do not change without profiling
-    #
-    # Calling frame_set __once__ per every keyframe in a scene is
-    # a huge performance win. We cache the results in case the user has multiple roots
-    # in a scene
+    import collections
 
     global _all_keyframe_infos
     if bpy.context.scene.name in _all_keyframe_infos:
@@ -176,25 +172,27 @@ def _pre_scan_all_keyframes():
     else:
         scene_keyframe_infos = collections.defaultdict(dict)
 
-    # A set of all keyframes that could have data we care about
-    frames_to_visit = sorted(
-        {
-            int(kf.co[0])
-            for action in bpy.data.actions
-            for fcurve in action.fcurves
-            for kf in fcurve.keyframe_points
-            if kf.co[0].is_integer()
-        }
-    )
+    # --- Collect all frames that might have keyframes ---
+    frames_to_visit = set()
 
-    # --- Begin frames to visit-------------------
+    for action in bpy.data.actions:
+        try:
+            for fcurve in action.fcurves:
+                for kf in fcurve.keyframe_points:
+                    if kf.co[0].is_integer():
+                        frames_to_visit.add(int(kf.co[0]))
+        except AttributeError:
+            continue
+
+    frames_to_visit = sorted(frames_to_visit)
+
+    # --- Visit each frame and record object/bone transforms ---
     for frame_num in frames_to_visit:
         bpy.context.scene.frame_set(frame_num)
 
-        # --- Begin objects to visit -------------
         for obj in bpy.context.scene.objects:
+            # --- Armature bones ---
             if obj.type == "ARMATURE":
-                # --- Begin bones to visit -------
                 for bone in obj.pose.bones:
                     l = LocRotPerFrame(
                         frame_num,
@@ -202,9 +200,9 @@ def _pre_scan_all_keyframes():
                         bone.rotation_mode,
                         xplane_helpers.get_rotation_from_rotatable(bone),
                     )
-
                     scene_keyframe_infos[(obj.name, bone.name)][frame_num] = l
-                # --- End bones to visit ---------
+
+            # --- Objects and empties ---
             l = LocRotPerFrame(
                 frame_num,
                 obj.location.copy(),
@@ -212,12 +210,11 @@ def _pre_scan_all_keyframes():
                 xplane_helpers.get_rotation_from_rotatable(obj),
             )
             scene_keyframe_infos[(obj.name, None)][frame_num] = l
-        # --- End objects to visit ---------------
-    # --- End frames to visit---------------------
+
+    # Reset frame to start
     bpy.context.scene.frame_set(1)
     _all_keyframe_infos[bpy.context.scene.name] = scene_keyframe_infos
     return
-
 
 class XPlaneFile:
     """
@@ -254,6 +251,9 @@ class XPlaneFile:
     def create_xplane_bone_hiearchy(
         self, exportable_root: ExportableRoot
     ) -> Optional[XPlaneObject]:
+
+        print(">>> CREATE HIERARCHY CALLED <<<", exportable_root)
+
         def allowed_children(
             parent_like: Union[bpy.types.Collection, bpy.types.Object]
         ) -> List[bpy.types.Object]:
@@ -409,6 +409,7 @@ class XPlaneFile:
             parent_bone: Optional[XPlaneBone],
             parent_blender_objects: bpy.types.Object,
         ) -> None:
+            print(">>> RECURSE CALLED <<<", parent_blender_objects)
             """
             Main function for recursing down tree.
 

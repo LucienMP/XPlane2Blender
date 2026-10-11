@@ -1,3 +1,4 @@
+print(">>> XPLANE_BONE FILE LOADED <<<")
 """
 About the XPlaneBone/XPlaneObject API
 =====================================
@@ -136,7 +137,8 @@ class XPlaneBone:
         return False
 
     # Method: isAnimatedForRotation
-    # Checks if a dataref's keyframes actually contain meaningful rotation, and we should therefore write keyframes out
+       # Checks if a dataref's keyframes actually contain meaningful rotation,
+    # and we should therefore write keyframes out
     def isDataRefAnimatedForRotation(self) -> bool:
         if hasattr(self, "animations") and len(self.animations) > 0:
             # Check to see if there is at least some difference in the keyframe locations
@@ -164,6 +166,10 @@ class XPlaneBone:
         """
         Collects animation_data from blenderObject, and pairs it with xplane datarefs
         """
+
+        print(">>> collectAnimations ENTERED <<<")
+        print("COLLECT ANIMATIONS CALLED")
+
         if not self.parent:
             return None
 
@@ -173,70 +179,99 @@ class XPlaneBone:
         blenderObject = self.blenderObject
 
         # check for animation
-        # if bone:
-        # print("\t\t checking animations of %s:%s" % (blenderObject.name, bone.name))
-        # else:
-        # print("\t\t checking animations of %s" % blenderObject.name)
-
         try:
+            from ..xplane_helpers import get_all_fcurves
+
             if bone:
-                # bone animation data resides in the armature objects .data block
+                action = blenderObject.data.animation_data.action
                 fcurves = [
                     f
-                    for f in blenderObject.data.animation_data.action.fcurves
+                    for f in get_all_fcurves(action)
                     if f.data_path.startswith(f'bones["{bone.name}"].xplane.datarefs')
                 ]
             else:
-                fcurves = [
-                    f
-                    for f in blenderObject.animation_data.action.fcurves
-                    if f.data_path.startswith(f"xplane.datarefs")
-                ]
+                action = blenderObject.animation_data.action
+                print("USING ACTION:", action.name)
+
+                fcurves = get_all_fcurves(action)
+
+                for f in fcurves:
+                    print("FOUND:", f.data_path)
+
         except AttributeError:
-            pass
-        else:
-            for fcurve in fcurves:
+            print("NO ANIMATION DATA")
+            return
+
+        print("FCURVES COUNT:", len(fcurves))
+
+        for fcurve in fcurves:
+            print("FCURVE PATH:", fcurve.data_path)
+
+            if "xplane.datarefs[" not in fcurve.data_path:
+                continue
+
+            print("KEYFRAME COUNT:", len(fcurve.keyframe_points))
+
+            if bone:
+                index = int(
+                    fcurve.data_path[
+                        len(f'bones["{bone.name}"].xplane.datarefs[') : -len("].value")
+                    ]
+                )
+            else:
+                path = fcurve.data_path
+
+                start = path.find("[") + 1
+                end = path.find("]")
+
+                if start == 0 or end == -1:
+                    print("INVALID DATAREF PATH:", path)
+                    continue
+
+                index = int(path[start:end])
+                
+
+            try:
                 if bone:
-                    index = int(
-                        fcurve.data_path[
-                            len(f'bones["{bone.name}"].xplane.datarefs[') : -len(
-                                "].value"
-                            )
-                        ]
-                    )
+                    dataref = bone.xplane.datarefs[index].path
                 else:
-                    index = int(
-                        fcurve.data_path[len("xplane.datarefs[") : -len("].value")]
-                    )
+                    dataref = blenderObject.xplane.datarefs[index].path
+            except IndexError:
+                return
 
-                try:
+            if len(fcurve.keyframe_points) > 1:
+                if bone:
+                    self.datarefs[dataref] = bone.xplane.datarefs[index]
+                else:
+                    self.datarefs[dataref] = blenderObject.xplane.datarefs[index]
+
+                keyframes = []
+
+                for i, kf in enumerate(fcurve.keyframe_points):
+                    frame = int(kf.co[0])
+
+                    # Move scene to correct frame (CRITICAL)
+                    bpy.context.scene.frame_set(frame)
+
                     if bone:
-                        dataref = bone.xplane.datarefs[index].path
-                    else:
-                        dataref = blenderObject.xplane.datarefs[index].path
-                except IndexError:
-                    # Due to a long standing bug in (I think in BONE_OT_remove_xplane_dataref.execute)
-                    # sometimes a Bone's fcurve is not properly removed. Any further indexes will also
-                    # be wrong.
-                    #
-                    # TODO: Fix whatever is causing this, but, we'll still need this for old .blend files
-                    # - Ted, 6/24/2020
-                    return
-                else:
-                    if len(fcurve.keyframe_points) > 1:
-                        if bone:
-                            self.datarefs[dataref] = bone.xplane.datarefs[index]
-                        else:
-                            self.datarefs[dataref] = blenderObject.xplane.datarefs[
-                                index
-                            ]
+                        pose_bone = blenderObject.pose.bones[bone.name]
+                        prop_name = f"xplane_dataref_{index}"
 
-                        self.animations[dataref] = XPlaneKeyframeCollection(
-                            [
-                                XPlaneKeyframe(kf, i, dataref, self)
-                                for i, kf in enumerate(fcurve.keyframe_points)
-                            ]
-                        )
+                        if prop_name in pose_bone:
+                            value = pose_bone[prop_name]
+                        else:
+                            value = kf.co[1]
+                    else:
+                        value = kf.co[1]
+
+                    key = XPlaneKeyframe(kf, i, dataref, self)
+
+                    # 🔥 OVERRIDE value
+                    key.value = value
+
+                    keyframes.append(key)
+
+                self.animations[dataref] = XPlaneKeyframeCollection(keyframes)
 
     def getName(self, ignore_indent_level: bool = False) -> str:
         """
@@ -579,6 +614,7 @@ class XPlaneBone:
         # and postMatrix is not preMatrix
         if (isAnimated) or hasAnimationAttributes:
             o += indent + "ANIM_begin\n"
+            o += indent + f"# ANIM_KEYS: {list(self.animations.keys())}\n"
 
         if isAnimated:  # and postMatrix is not preMatrix:
             # write out static translations of bake
@@ -849,7 +885,7 @@ class XPlaneBone:
         if not isAnimated and not hasAnimationAttributes:
             return o
 
-        if (isAnimated) or hasAnimationAttributes:
+        if True:
             o += f"{self.getIndent()}ANIM_end\n"
 
         return o
