@@ -6,10 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import bpy
 
 from io_xplane2blender import xplane_props
-from io_xplane2blender.xplane_helpers import (
-    ensure_action_group,
-    get_action_fcurves,
-)
+from io_xplane2blender.xplane_helpers import get_action_fcurves
 from io_xplane2blender.xplane_config import *
 from io_xplane2blender.xplane_constants import (
     MAX_COCKPIT_REGIONS,
@@ -35,42 +32,49 @@ from io_xplane2blender.xplane_utils import (
 # Returns:
 #   FCurve or None if no FCurve could be found.
 def findFCurveByPath(fcurves, path):
-    i = 0
-    fcurve = None
-
-    # find fcurve
-    while i < len(fcurves):
-        if fcurves[i].data_path == path:
-            fcurve = fcurves[i]
-            i = len(fcurves)
-        i += 1
-    return fcurve
+    return next((fcurve for fcurve in fcurves if fcurve.data_path == path), None)
 
 
-# Function: makeKeyframesLinear
-# Sets interpolation mode of keyframes to linear.
-#
-# Parameters:
-#   obj - Blender object
-#   string path - data path.
-#
-# Todos:
-#   - not working
-def makeKeyframesLinear(obj, path):
-    fcurve = None
+def makeKeyframesLinear(anim_data: Optional[bpy.types.AnimData], path: str) -> None:
+    """
+    Sets the interpolation of the keyframes of path to linear,
+    since that is how X-Plane interpolates between them
+    """
+    fcurve = findFCurveByPath(get_action_fcurves(anim_data), path)
+    if fcurve:
+        for keyframe in fcurve.keyframe_points:
+            keyframe.interpolation = "LINEAR"
 
-    if (
-        obj.animation_data != None
-        and obj.animation_data.action != None
-        and len(get_action_fcurves(obj.animation_data)) > 0
-    ):
-        fcurve = findFCurveByPath(get_action_fcurves(obj.animation_data), path)
 
-        if fcurve:
-            # find keyframe
-            keyframe = None
-            for keyframe in fcurve.keyframe_points:
-                keyframe.interpolation = "LINEAR"
+def removeDatarefFCurves(
+    anim_data: Optional[bpy.types.AnimData],
+    index: int,
+    bone: Optional[bpy.types.Bone] = None,
+) -> None:
+    """
+    Removes the FCurve of the XPlaneDataref removed from index and renumbers
+    the FCurves of the datarefs after it, so they keep their keyframes
+    """
+    fcurves = get_action_fcurves(anim_data)
+    prefix = getDatarefValuePath(index, bone)[: -len(f"{index}].value")]
+
+    def dataref_index(fcurve: bpy.types.FCurve) -> Optional[int]:
+        if not fcurve.data_path.startswith(prefix):
+            return None
+        idx, _, rest = fcurve.data_path[len(prefix) :].partition("]")
+        return int(idx) if idx.isdigit() and rest == ".value" else None
+
+    removed = findFCurveByPath(fcurves, getDatarefValuePath(index, bone))
+    if removed:
+        fcurves.remove(fcurve=removed)
+
+    later = [
+        (i, fcurve)
+        for fcurve in fcurves
+        if (i := dataref_index(fcurve)) is not None and i > index
+    ]
+    for i, fcurve in sorted(later, key=lambda pair: pair[0]):
+        fcurve.data_path = getDatarefValuePath(i - 1, bone)
 
 
 # Function: getDatarefValuePath
@@ -308,15 +312,7 @@ class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
     def execute(self, context):
         obj = context.object
         obj.xplane.datarefs.remove(self.index)
-
-        path = getDatarefValuePath(self.index)
-
-        # remove FCurves too
-        fcurves = get_action_fcurves(obj.animation_data)
-        if fcurves:
-            fcurve = findFCurveByPath(fcurves, path)
-            if fcurve:
-                fcurves.remove(fcurve=fcurve)
+        removeDatarefFCurves(obj.animation_data, self.index)
 
         return {"FINISHED"}
 
@@ -334,15 +330,10 @@ class OBJECT_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.object
-        path = getDatarefValuePath(self.index)
-        value = obj.xplane.datarefs[self.index].value
-
-        ensure_action_group(obj.animation_data, "XPlane Datarefs")
-
         obj.xplane.datarefs[self.index].keyframe_insert(
             data_path="value", group="XPlane Datarefs"
         )
-        makeKeyframesLinear(obj, path)
+        makeKeyframesLinear(obj.animation_data, getDatarefValuePath(self.index))
 
         return {"FINISHED"}
 
@@ -444,16 +435,10 @@ class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
 
     def execute(self, context):
         bone = context.bone
-        obj = context.object
+        armature = context.object
         bone.xplane.datarefs.remove(self.index)
-        path = getDatarefValuePath(self.index, bone)
-
-        # remove FCurves too
-        fcurves = get_action_fcurves(obj.animation_data)
-        if fcurves:
-            fcurve = findFCurveByPath(fcurves, path)
-            if fcurve:
-                fcurves.remove(fcurve=fcurve)
+        # Bone dataref keyframes live on the Armature datablock, not the Object
+        removeDatarefFCurves(armature.data.animation_data, self.index, bone)
 
         return {"FINISHED"}
 
@@ -478,12 +463,10 @@ class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
         # See also: https://blender.stackexchange.com/q/31759
         armature = context.object
         path = getDatarefValuePath(self.index, bone)
-
-        groupName = "XPlane Datarefs " + bone.name
-
-        ensure_action_group(armature.animation_data, groupName)
-
-        armature.data.keyframe_insert(data_path=path, group=groupName)
+        armature.data.keyframe_insert(
+            data_path=path, group="XPlane Datarefs " + bone.name
+        )
+        makeKeyframesLinear(armature.data.animation_data, path)
 
         return {"FINISHED"}
 
@@ -501,7 +484,6 @@ class BONE_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
 
     def execute(self, context):
         bone = context.bone
-        path = getDatarefValuePath(self.index)
         armature = context.object
         path = getDatarefValuePath(self.index, bone)
         armature.data.keyframe_delete(

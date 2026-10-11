@@ -55,68 +55,57 @@ def floatToStr(n: float) -> str:
     return s
 
 
-def get_action_fcurves(anim_data):
-    """Return the FCurves collection for the active action/slot.
+def _is_legacy_action(action: bpy.types.Action) -> bool:
+    """
+    True for Actions using the pre-4.4 flat FCurve list.
 
-    Blender 4.x: action.fcurves
-    Blender 5.x: channelbag.fcurves for the bound slot
-    Returns an empty list when there is no action or no matching channelbag.
+    Blender 4.4 added layered Actions with slots, where action.fcurves only
+    shows the first slot. Blender 5.0 removed action.fcurves entirely.
+    """
+    return hasattr(action, "fcurves") and not getattr(
+        action, "is_action_layered", False
+    )
+
+
+def get_action_fcurves(anim_data: Optional[bpy.types.AnimData]):
+    """
+    Returns the FCurves animating anim_data's ID: the FCurves of the
+    assigned Action, or with slotted Actions, of the assigned slot.
+    Returns an empty list when there is nothing animating it.
     """
     if anim_data is None or anim_data.action is None:
         return []
     action = anim_data.action
-    if hasattr(action, "fcurves"):
-        # Blender < 5.0
+    if _is_legacy_action(action):
         return action.fcurves
-    # Blender 5.0+
-    from bpy_extras import anim_utils
 
     slot = anim_data.action_slot
     if slot is None:
         return []
-    channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
-    return channelbag.fcurves if channelbag else []
+    for layer in action.layers:
+        for strip in layer.strips:
+            channelbag = strip.channelbag(slot)
+            if channelbag:
+                return channelbag.fcurves
+    return []
 
 
-def iter_all_action_fcurves(action):
-    """Iterate every FCurve in an action, across all slots/channelbags.
-
-    Use this when you need to scan all keyframes regardless of which object
-    is bound to the action (e.g. building a global frame-visit set).
+def iter_all_action_fcurves(action: bpy.types.Action) -> List[bpy.types.FCurve]:
     """
-    if hasattr(action, "fcurves"):
-        # Blender < 5.0
-        return action.fcurves
-    # Blender 5.0+: iterate every slot's channelbag
-    from bpy_extras import anim_utils
+    Returns every FCurve in an action, across all slots.
 
-    result = []
-    for slot in action.slots:
-        channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
-        if channelbag:
-            result.extend(channelbag.fcurves)
-    return result
-
-
-def ensure_action_group(anim_data, group_name: str) -> None:
-    """Ensure an FCurve group with *group_name* exists in the right container.
-
-    Blender 4.x: action.groups
-    Blender 5.x: channelbag.groups (creates the channelbag if needed)
+    Use this when you need to scan all keyframes regardless of which ID
+    is using the action (e.g. building a global frame-visit set).
     """
-    action = anim_data.action
-    if hasattr(action, "fcurves"):
-        # Blender < 5.0
-        if group_name not in action.groups:
-            action.groups.new(group_name)
-    else:
-        # Blender 5.0+
-        from bpy_extras import anim_utils
-
-        slot = anim_data.action_slot
-        channelbag = anim_utils.action_ensure_channelbag_for_slot(action, slot)
-        if group_name not in channelbag.groups:
-            channelbag.groups.new(group_name)
+    if _is_legacy_action(action):
+        return list(action.fcurves)
+    return [
+        fcurve
+        for layer in action.layers
+        for strip in layer.strips
+        for channelbag in strip.channelbags
+        for fcurve in channelbag.fcurves
+    ]
 
 
 def resolveBlenderPath(path: str) -> str:
