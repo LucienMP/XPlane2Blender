@@ -490,7 +490,11 @@ class XPlaneLight(xplane_object.XPlaneObject):
         # -------------------|------------|--------------|------------------|-------
         # LIGHT_{OLD_TYPES}  | *          | N/A          | N/A              | Write
         elif self.lightType in LIGHTS_OLD_TYPES:
-            pass
+            # Written as a VLIGHT, which ignores parenting, offsets and animation (#370)
+            logger.warn(
+                f"'{self.blenderObject.name}' uses the deprecated {self.lightType.title()} light type."
+                " Its position may be wrong in X-Plane, use Automatic instead"
+            )
         else:
             assert (
                 False

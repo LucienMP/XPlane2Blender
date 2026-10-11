@@ -2635,7 +2635,7 @@ class XPlaneLightSettings(bpy.types.PropertyGroup):
         description = "Defines the type of the light in X-Plane",
         default = LIGHT_AUTOMATIC,
         items = [
-                (LIGHT_DEFAULT,   "Default",                    "Default"),
+                (LIGHT_DEFAULT,   "Default"  + " (deprecated)", "Default"  + " (deprecated)"),
                 (LIGHT_FLASHING,  "Flashing" + " (deprecated)", "Flashing" + " (deprecated)"),
                 (LIGHT_PULSING,   "Pulsing"  + " (deprecated)", "Pulsing"  + " (deprecated)"),
                 (LIGHT_STROBE,    "Strobe"   + " (deprecated)", "Strobe"   + " (deprecated)"),
