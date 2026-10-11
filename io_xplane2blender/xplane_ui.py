@@ -13,6 +13,7 @@ from io_xplane2blender import xplane_constants, xplane_props, xplane_types, xpla
 
 from .xplane_constants import *
 from .xplane_ops import *
+from .xplane_ops import _get_active_root
 from .xplane_props import *
 from .xplane_helpers import is_path_decal_lib
 
@@ -80,12 +81,7 @@ class RENDER_PT_xplane(bpy.types.Panel):
         def draw_bake_op(layout: bpy.types.UILayout):
             scene = context.scene
             row = layout.row()
-            if context.active_object.xplane.isExportableRoot:
-                active_root = context.active_object
-            elif context.collection.xplane.is_exportable_collection:
-                active_root = context.collection
-            else:
-                active_root = None
+            active_root = _get_active_root(context)
 
             if active_root and active_root.xplane.layer.export_type in {
                 EXPORT_TYPE_AIRCRAFT,
@@ -1293,70 +1289,17 @@ def light_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
 def material_layout(layout: UILayout, active_material: bpy.types.Material) -> None:
     version = int(bpy.context.scene.xplane.version)
 
-    def show_specular_warning():
+    def specular_layout():
         """
-        If the user has hidden the EEVEE old style Specular value, display
-        a warning that the EEVEE one will still be used.
-
-        If they've accidentally started using the nodes version, a more
-        in depth explanation is show.
+        ATTR_shiny_rat comes from the Material's non-node Specular. Blender
+        materials always use nodes now, which hides it, so we draw it here.
         """
+        row = layout.row()
+        row.prop(active_material, "specular_intensity", text="Specular (Shiny Ratio)")
+        if active_material.xplane.cockpit_feature != COCKPIT_FEATURE_NONE:
+            row.enabled = False
 
-        render_engine = bpy.context.scene.render.engine.replace("BLENDER_", "")
-
-        def rnd_cmp_eq(a, b, ndigits=3):
-            return round(a, ndigits) == round(b, ndigits)
-
-        try:
-            output_node = active_material.node_tree.get_output_node(render_engine)
-            surface_shader_node = output_node.inputs["Surface"].links[0].from_node
-            if surface_shader_node.type != "BSDF_PRINCIPLED":
-                raise TypeError
-        # No link back to BSDF, wrong output mode, or wrong surface shader type
-        except (IndexError, TypeError) as e:
-            is_spec_hidden = True
-        else:
-            # CYCLES will always hide our 'specular_intensity'
-            if render_engine == "CYCLES" or (
-                render_engine == "EEVEE" and active_material.use_nodes
-            ):
-                is_spec_hidden = True
-
-                if "Specular" in surface_shader_node.inputs:
-                    node_specular = surface_shader_node.inputs["Specular"].default_value
-                else:
-                    node_specular = surface_shader_node.inputs["Specular IOR Level"].default_value
-                
-                # Potential default values. Hopefully we get no false positives.
-                node_specular_at_default = any(
-                    (rnd_cmp_eq(node_specular, d) for d in [0.0, 0.5])
-                )
-                node_spec_changed_msg = "".join(
-                    (
-                        "Addon uses EEVEE non-Node 'Specular'. ",
-                        "Use EEVEE and turn " if render_engine == "CYCLES" else "Turn ",
-                        "off 'Uses Nodes' to reveal.",
-                    )
-                )
-                if not node_specular_at_default:
-                    layout.label(
-                        text=node_spec_changed_msg, icon="ERROR",
-                    )
-            else:
-                is_spec_hidden = False
-        if is_spec_hidden and not rnd_cmp_eq(active_material.specular_intensity, 0.5):
-            msg = "".join(
-                (
-                    "Using EEVEE non-Node 'Specular', despite it being hid",
-                    "den and using Cycles." if render_engine == "CYCLES" else ".",
-                )
-            )
-
-            layout.label(
-                text=msg, icon="INFO",
-            )
-
-    show_specular_warning()
+    specular_layout()
     draw_box = layout.box()
     draw_box.label(text="Draw Settings")
     draw_box_column = draw_box.column()
