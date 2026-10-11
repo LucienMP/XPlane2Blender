@@ -789,12 +789,9 @@ def parse_lights_file():
                 continue
 
             def get_parsed_light_of_content_dict(light_name: str) -> ParsedLight:
-                try:
-                    _parsed_lights_txt_content[light_name]
-                except KeyError:
+                if light_name not in _parsed_lights_txt_content:
                     _parsed_lights_txt_content[light_name] = ParsedLight(light_name)
-                finally:
-                    return _parsed_lights_txt_content[light_name]
+                return _parsed_lights_txt_content[light_name]
 
             if overload_type == "LIGHT_PARAM_DEF":
                 parsed_light = get_parsed_light_of_content_dict(light_name)
@@ -873,7 +870,7 @@ def parse_lights_file():
                                 light_args
                             ) - 1:
                                 return True
-                            elif re.match("-?\d+(\.\d+)?", arg):
+                            elif re.match(r"-?\d+(\.\d+)?", arg):
                                 return True
                             else:
                                 return False

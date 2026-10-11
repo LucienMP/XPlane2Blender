@@ -100,11 +100,11 @@ def parse_datarefs_txt(filepath: str) -> Union[List[DatarefInfoStruct], str]:
         return "..." + os.path.sep.join(pathlib.Path(filepath).parts[-3:])
 
     try:
-        with open(filepath) as dref_file:
+        with open(filepath, encoding="utf-8", errors="replace") as dref_file:
             file_contents = []
             for i, line in enumerate(dref_file):
                 if i == 0:
-                    match = re.match("^([0-9]) [0-9]+(\s+|$)", line)
+                    match = re.match(r"^([0-9]) [0-9]+(\s+|$)", line)
                     if match:
                         if match.group(1) != "2":
                             return "File version number '{}' is not 2".format(
@@ -120,7 +120,7 @@ def parse_datarefs_txt(filepath: str) -> Union[List[DatarefInfoStruct], str]:
                     else:
                         return "Does not have a blank line for its second line"
 
-                if re.match("^\s+", line):
+                if re.match(r"^\s+", line):
                     return "Line {} cannot start with whitespace".format(i)
 
                 segments = [
@@ -145,7 +145,7 @@ def parse_datarefs_txt(filepath: str) -> Union[List[DatarefInfoStruct], str]:
             _datarefs_txt_content[filepath] = file_contents
             return _datarefs_txt_content[filepath]
     except Exception as e:
-        return e.args[1]
+        return getattr(e, "strerror", None) or str(e)
 
 
 def get_datarefs_txt_file_content(filepath: str) -> Union[List[DatarefInfoStruct], str]:

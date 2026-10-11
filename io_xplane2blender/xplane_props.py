@@ -101,7 +101,7 @@ def UpdateLayerGroupsOnVersionChange(self, context):
 
 
 class XPlane2BlenderVersion(bpy.types.PropertyGroup):
-    """
+    r"""
     Contains useful methods for getting information about the
     version and build number of XPlane2Blender
 
