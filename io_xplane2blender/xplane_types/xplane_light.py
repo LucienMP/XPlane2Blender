@@ -500,6 +500,18 @@ class XPlaneLight(xplane_object.XPlaneObject):
                 False
             ), f"{self.blenderObject.name} had some property configuation that was unaccounted for"
 
+        xplane_file = self.xplaneBone.xplaneFile
+        if xplane_file.options.export_type == EXPORT_TYPE_INSTANCED_SCENERY:
+            reason = self._why_not_instanced(parsed_light)
+            if reason:
+                logger.warn(
+                    f"{xplane_file.filename} is an Instanced Scenery Object, but X-Plane won't instance it"
+                    f" because of the light '{self.blenderObject.name}': {reason}."
+                    " X-Plane will draw every copy one at a time, which is much slower."
+                    " Use a light X-Plane can instance (a named or parameterized light that isn't"
+                    " dataref-driven, or a custom spill without a dataref), or export it as a Scenery Object."
+                )
+
         if self.lightType == LIGHT_AUTOMATIC and self.record_completed:
             try:
                 is_omni = self.record_completed.is_omni()
@@ -516,6 +528,31 @@ class XPlaneLight(xplane_object.XPlaneObject):
                     f"{self.blenderObject.name}'s '{self.lightName}' light will be directional in X-Plane. Use a Spot light"
                 )
                 return
+
+    def _why_not_instanced(
+        self, parsed_light: Optional[xplane_lights_txt_parser.ParsedLight]
+    ) -> Optional[str]:
+        """
+        Why X-Plane won't instance an OBJ with this light, or None (#489).
+        Each rule was checked in X-Plane 12.4.4
+        """
+        if self.lightType == LIGHT_CUSTOM:
+            return "custom billboard lights are never instanced"
+        if self.lightType == LIGHT_SPILL_CUSTOM and self.dataref.strip() not in {"", "none"}:
+            return f"its dataref '{self.dataref.strip()}' is processed for every copy"
+        if (
+            self.lightType in {LIGHT_NAMED, LIGHT_PARAM, LIGHT_AUTOMATIC}
+            and parsed_light
+            and any(
+                overload.overload_type in {"BILLBOARD_SW", "SPILL_SW"}
+                for overload in parsed_light.overloads
+            )
+        ):
+            return (
+                f"X-Plane's lights.txt defines '{self.lightName}' as dataref-driven"
+                " (a BILLBOARD_SW or SPILL_SW light)"
+            )
+        return None
 
     def write(self) -> None:
         debug = getDebug()

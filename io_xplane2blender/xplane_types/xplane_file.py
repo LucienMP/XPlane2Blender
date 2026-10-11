@@ -688,6 +688,36 @@ class XPlaneFile:
 
         return True
     
+    def warnAnimatedInstancedObjects(self) -> None:
+        """
+        X-Plane 12 doesn't instance an OBJ with any animation: rotation,
+        translation or show/hide, all checked in X-Plane 12.4.4 (#368).
+        Lights are checked in XPlaneLight.collect (#489)
+        """
+        if self.options.export_type != xplane_constants.EXPORT_TYPE_INSTANCED_SCENERY:
+            return
+        def walk(bone: XPlaneBone):
+            yield bone
+            for child in bone.children:
+                yield from walk(child)
+
+        animated = sorted(
+            bone.blenderBone.name if bone.blenderBone else bone.blenderObject.name
+            for bone in walk(self.rootBone)
+            if bone.parent
+            and (
+                bone.isAnimated()
+                or (bone.xplaneObject and bone.xplaneObject.animAttributes)
+            )
+        )
+        if animated:
+            logger.warn(
+                f"{self.filename} is an Instanced Scenery Object, but X-Plane won't instance it because"
+                f" {', '.join(animated)} {'is' if len(animated) == 1 else 'are'} animated."
+                " X-Plane will draw every copy one at a time, which is much slower."
+                " Remove the animation, or export it as a Scenery Object."
+            )
+
     def validateOptions(self) -> bool:
         if self.options.texture_normal and self.options.texture_map_normal:
             logger.error(f'"Normal / Specular" and "Normal" provided in "{self.options.name}", use only one.')
@@ -803,6 +833,8 @@ class XPlaneFile:
 
         if not self.compareMaterials(self.referenceMaterials):
             return ""
+
+        self.warnAnimatedInstancedObjects()
 
         o = ""
         o += self.header.write()
