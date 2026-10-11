@@ -1520,11 +1520,15 @@ def bone_dataref_value_layout(
     """
     Draws a bone dataref's value with its keyframe state (#738).
 
-    Blender can't make a data path to properties stored on bones, so it
-    can't color their animated fields itself. Like Blender's decorators:
-    a filled diamond is a keyframe on this frame, a dot means animated.
-    The field turns red when the value was changed without keying it, as
-    the change is lost on the next frame change.
+    Works around a Blender bug: Blender can't build a data path to
+    PropertyGroups stored on bones (path_from_id() says it "does not support
+    path creation"), so it can't color their animated fields. The same
+    group on an Object, and plain custom properties on bones, work fine.
+
+    Like Blender's decorators: a filled diamond is a keyframe on this
+    frame, a hollow one means animated. The field turns red when the value
+    was changed without keying it, as the change is lost on the next frame
+    change. Remove this once Blender can build these paths.
     """
     armature = bone.id_data
     data_path = getDatarefValuePath(index, bone)
