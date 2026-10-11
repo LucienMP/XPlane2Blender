@@ -119,13 +119,16 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
             char label[16];
             snprintf(label, sizeof label, "s%d", g_samples);
             dump_datarefs(label);
-            if (++g_samples >= 5) {
-                run_command("sim/operation/screenshot");
-                NEXT(3);
-            }
+            if (++g_samples >= 5) NEXT(3);
         }
         break;
-    case 3:
+    case 3: /* let auto-exposure settle before the screenshot */
+        if (in_state > 20.0f) {
+            run_command("sim/operation/screenshot");
+            NEXT(4);
+        }
+        break;
+    case 4:
         if (in_state > 4.0f) NEXT(90);
         break;
     case 90:

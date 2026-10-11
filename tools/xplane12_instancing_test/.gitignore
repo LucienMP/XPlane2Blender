@@ -8,3 +8,4 @@ plugin/*.xpl
 plugin/*.obj
 plugin/*.lib
 plugin/*.exp
+dsf_visual/

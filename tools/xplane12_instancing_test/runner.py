@@ -1,8 +1,8 @@
 """
-Runs the instancing test in X-Plane 12 (see README.md).
+Runs the X-Plane 12 tests (see README.md).
 
     python runner.py install            # back up, then copy the test scenery + plugin into X-Plane
-    python runner.py run VARIANT [...]  # one X-Plane run per OBJ variant ("none" = no objects)
+    python runner.py run NAME [...]     # one X-Plane run each: a counting variant, "none", or "scene:<name>"
     python runner.py cleanup            # remove everything and restore the backups
 
 X-Plane must be closed for install and cleanup. XPLANE_DIR overrides the X-Plane folder.
@@ -51,7 +51,8 @@ def install():
         shutil.copy(os.path.join(XP, "Log.txt"), os.path.join(BACKUP, "Log.txt"))
     os.makedirs(os.path.join(PACK, "Earth nav data", "+40-130"), exist_ok=True)
     os.makedirs(os.path.join(PACK, "objects"), exist_ok=True)
-    shutil.copy(os.path.join(HERE, "objects", "tex.png"), os.path.join(PACK, "objects", "tex.png"))
+    for png in glob.glob(os.path.join(HERE, "objects", "*.png")):
+        shutil.copy(png, os.path.join(PACK, "objects"))
     os.makedirs(os.path.join(PLUGIN, "64"), exist_ok=True)
     shutil.copy(os.path.join(HERE, "plugin", "win.xpl"), os.path.join(PLUGIN, "64", "win.xpl"))
     lines = open(INI, encoding="utf8").read().splitlines()
@@ -64,14 +65,37 @@ def install():
     print("installed")
 
 
-def run(variant):
-    # "none" places no objects at all; the others place 10,000 copies of the variant
+SLOTS = 6
+EMPTY_OBJ = "I\n800\nOBJ\n\nPOINT_COUNTS\t0\t0\t0\t0\n"
+
+
+def run(name):
+    """
+    One X-Plane run. name is a counting variant ("none" or an OBJ in objects/, placed 10,000 times)
+    or "scene:<name>" from scenes.py: up to 6 OBJs side by side 30 m ahead, for screenshots.
+    """
+    import copy
+    import importlib
+    flight = copy.deepcopy(FLIGHT)
     dsf = os.path.join(PACK, "Earth nav data", "+40-130", "+47-124.dsf")
-    shutil.copy(os.path.join(HERE, "dsf_empty" if variant == "none" else "dsf_full", "+47-124.dsf"), dsf)
-    if variant != "none":
-        shutil.copy(os.path.join(HERE, "objects", f"{variant}.obj"), os.path.join(PACK, "objects", "test.obj"))
-    for name in ("log.txt", "datarefs.tsv"):
-        p = os.path.join(PLUGIN, name)
+    if name.startswith("scene:"):
+        scenes = importlib.import_module("scenes").SCENES
+        scene = scenes[name[len("scene:"):]]
+        flight["local_time"]["time_in_24_hours"] = scene.get("time", 13.0)
+        shutil.copy(os.path.join(HERE, "dsf_visual", "+47-124.dsf"), dsf)
+        slots = list(scene["slots"]) + [None] * (SLOTS - len(scene["slots"]))
+        for i, variant in enumerate(slots, start=1):
+            target = os.path.join(PACK, "objects", f"slot{i}.obj")
+            if variant:
+                shutil.copy(os.path.join(HERE, "objects", f"{variant}.obj"), target)
+            else:
+                open(target, "w", newline="\n").write(EMPTY_OBJ)
+    else:
+        shutil.copy(os.path.join(HERE, "dsf_empty" if name == "none" else "dsf_full", "+47-124.dsf"), dsf)
+        if name != "none":
+            shutil.copy(os.path.join(HERE, "objects", f"{name}.obj"), os.path.join(PACK, "objects", "test.obj"))
+    for f in ("log.txt", "datarefs.tsv"):
+        p = os.path.join(PLUGIN, f)
         if os.path.exists(p):
             os.remove(p)
     # The plugin only acts when armed, and disarms itself
@@ -79,26 +103,39 @@ def run(variant):
     shots_before = set(glob.glob(os.path.join(XP, "Output", "screenshots", "*")))
     start = time.time()
     proc = subprocess.Popen([os.path.join(XP, "X-Plane.exe")], cwd=XP)
-    status = start_flight(proc)
-    if status is None:
-        try:
-            proc.wait(timeout=max(30, TIMEOUT - (time.time() - start)))
-            status = f"exited {proc.returncode}"
-        except subprocess.TimeoutExpired:
-            status = "timed out"
+    status = start_flight(proc, flight) or wait_for_exit(proc, start)
     if proc.poll() is None:
-        quit_xplane(proc)
-        status += ", closed by runner"
-    out = os.path.join(RESULTS, variant)
+        proc.kill()
+        proc.wait()
+        status += ", force-closed"
+    out = os.path.join(RESULTS, name.replace(":", "_"))
     os.makedirs(out, exist_ok=True)
-    for name in ("log.txt", "datarefs.tsv"):
-        p = os.path.join(PLUGIN, name)
+    for f in ("log.txt", "datarefs.tsv"):
+        p = os.path.join(PLUGIN, f)
         if os.path.exists(p):
             shutil.copy(p, out)
     shutil.copy(os.path.join(XP, "Log.txt"), os.path.join(out, "XPlane_Log.txt"))
     for shot in set(glob.glob(os.path.join(XP, "Output", "screenshots", "*"))) - shots_before:
         shutil.move(shot, os.path.join(out, os.path.basename(shot)))
-    print(f"{variant}: {status} in {time.time() - start:.0f}s -> {out}")
+    print(f"{name}: {status} in {time.time() - start:.0f}s -> {out}", flush=True)
+
+
+def wait_for_exit(proc, start):
+    """
+    Waits for X-Plane to quit after the plugin's run. X-Plane can stop at a quit
+    confirmation dialog, so it's force-closed 60 s after the plugin asked it to quit
+    """
+    asked = None
+    log = os.path.join(PLUGIN, "log.txt")
+    while proc.poll() is None:
+        if asked is None and os.path.exists(log) and "quitting" in open(log, errors="replace").read():
+            asked = time.time()
+        if asked and time.time() - asked > 60:
+            return "did not quit within 60 s of being asked (quit dialog?)"
+        if time.time() - start > TIMEOUT:
+            return "timed out"
+        time.sleep(2)
+    return f"exited {proc.returncode}"
 
 
 def web(method, path, body=None, timeout=10):
@@ -113,7 +150,7 @@ def web(method, path, body=None, timeout=10):
         conn.close()
 
 
-def start_flight(proc):
+def start_flight(proc, flight):
     """Waits for the Web API, then starts the test flight. Returns None, or why it failed."""
     deadline = time.time() + 300
     while time.time() < deadline:
@@ -128,7 +165,7 @@ def start_flight(proc):
     else:
         return "Web API never answered (Settings > Network: allow incoming traffic?)"
     try:
-        status, raw = web("POST", "/api/v3/flight", {"data": FLIGHT}, timeout=TIMEOUT)
+        status, raw = web("POST", "/api/v3/flight", {"data": flight}, timeout=TIMEOUT)
     except http.client.RemoteDisconnected:
         # X-Plane drops the connection once the new flight has loaded
         return None
@@ -138,15 +175,6 @@ def start_flight(proc):
         return f"POST /api/v3/flight: HTTP {status} {raw[:300]!r}"
     return None
 
-
-def quit_xplane(proc):
-    """Asks X-Plane to quit, as its window's close button does, then forces it"""
-    subprocess.run(["taskkill", "/PID", str(proc.pid)], capture_output=True)
-    try:
-        proc.wait(timeout=90)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
 
 
 def cleanup():

@@ -1,6 +1,6 @@
-# X-Plane 12 instancing test
+# X-Plane 12 tests
 
-Checks, in X-Plane itself, which OBJ features stop an object from being **hardware instanced**. XPlane2Blender's
+Checks OBJ behaviour in X-Plane itself. It started as the instancing test: which OBJ features stop an object from being **hardware instanced**. XPlane2Blender's
 Instanced Scenery Object warnings ([#368](https://github.com/X-Plane/XPlane2Blender/issues/368),
 [#489](https://github.com/X-Plane/XPlane2Blender/issues/489)) are based on these results. Rerun it when a new
 X-Plane version might have changed the rules.
@@ -14,7 +14,13 @@ X-Plane version might have changed the rules.
 - `plugin/` is a small X-Plane plugin. Once the runner has armed it, it waits for the scenery to load, records every
   numeric dataref five times, takes a screenshot and quits X-Plane.
 - `runner.py` swaps in one variant, starts X-Plane, and starts the flight through X-Plane's Web API
-  (`POST /api/v3/flight`, the same way FSSR's `xpweb.py` does). It then collects the results.
+  (`POST /api/v3/flight`, the same way FSSR's `xpweb.py` does). It then collects the results. X-Plane sometimes stops
+  at a quit confirmation dialog, so the runner force-closes it 60 s after the plugin asked it to quit.
+- **Visual scenes** (`scene:<name>` from `scenes.py`) place up to 6 objects side by side 30 m in front of the
+  camera, so variants are compared in one screenshot under the same light. `make_visual_objects.py` writes them;
+  the `x_xp2b_*` objects are XPlane2Blender's own exports, made with the scripts in `blender/` (or, for the Drag
+  Rotate one, `tests/object/drag_rotate_mouse_wheel.test.py`). The plugin waits 20 s before the screenshot, for
+  auto-exposure to settle.
 
 **The measure:** `sim/private/stats/instance/num_cluster_objs`, the number of objects X-Plane has put into instancing
 clusters. With 10,000 copies an instanced variant raises it by about 10,000. A non-instanced one doesn't change it.
@@ -32,9 +38,11 @@ while the runs go: each run starts and quits X-Plane.**
 ```
 plugin\build.bat C:\path\to\XPSDK430\SDK
 python make_objects.py objects
+python make_visual_objects.py objects
 python gen_dsf.py C:\path\to\xptools\tools\DSFTool.exe
 python runner.py install        # backs up scenery_packs.ini, preferences and Log.txt first
 python runner.py run none control anim light_custom named_sw_VASI ...
+python runner.py run scene:spot_night2 scene:conditionals_day ...
 python runner.py cleanup        # removes the plugin and scenery, restores the backups
 ```
 
@@ -78,3 +86,17 @@ This matches Laminar's guidance in [Third Party Cars Should Really Be Instanced]
 (2016) and [Making 3-d Modeling Less Weird](https://developer.x-plane.com/2015/12/making-3d-modeling-less-weird/)
 (2015), and the `lights.txt` header in X-Plane 12.4.4 ("BILLBOARD_SW - dataref-driven billboard", "SPILL_SW -
 dataref driven spill").
+
+## Visual results: X-Plane 12.4.4, 12 October 2026
+
+Night scenes at 01:00, day scenes at 13:00 on 21 June. Brightness was measured from the screenshots, and each comparison
+was repeated with the objects in swapped positions.
+
+| Question | What was compared | Result |
+|---|---|---|
+| [#755](https://github.com/X-Plane/XPlane2Blender/issues/755): is `500cd` ignored in `LIGHT_PARAM spot_params_bb_pm`? | `500cd`, `5000cd`, `50cd` vs bare `500`, `50`, `5`, `1`; and XPlane2Blender's own Automatic light export | **No.** `cd` values light, and brighter for higher values; XPlane2Blender's export (`5000cd`) lights. Bare numbers are on a different scale: `1` and `5` light, `50` and `500` give nothing. Writing bare numbers, as the issue suggests, would make typical lights invisible. |
+| Custom spill without a dataref: no token (XPlane2Blender) vs `none` (spec) | Same light, swapped positions | **Identical.** X-Plane accepts the missing token. |
+| Custom spill size: bare meters (XPlane2Blender before the fix) vs candela | Bare `5`, `15`, `25`, `500` vs `500cd`, `5000cd`; and XPlane2Blender's export before and after the fix | **Bare sizes give little or no light:** `5` faint, `15`-`25` almost none, `500` none. `500cd`/`5000cd` light strongly. XPlane2Blender's old export (`67.58`, `40`) left the ground dark; the fixed export (`5000cd`) lit it. |
+| [#284](https://github.com/X-Plane/XPlane2Blender/issues/284): conditionals | `IF`/`IF NOT`/`ELSE`/`ELSE IF`/`ENDIF` with `VERSION10`, `GLOBAL_LIGHTING`, `GLOBAL_SHADOWS`, `SCENERY_SHADOWS` | **All supported.** `ELSE` and `ELSE IF` work. `VERSION10` and `GLOBAL_LIGHTING` were true (X-Plane 12 has no non-HDR mode). The two shadow variables were true with the shadow settings used; their false case wasn't tested. |
+| [#461](https://github.com/X-Plane/XPlane2Blender/issues/461): `GLOBAL_specular` with a normal map | Panels angled to reflect the sky: no normal map; normal map with `GLOBAL_specular` 0, 1.0 | **Small effect.** Adding a normal map made the surface clearly more reflective (red channel 11 → 42); `GLOBAL_specular` 0 → 1.0 changed it a little (42 → 47.5). |
+| [#621](https://github.com/X-Plane/XPlane2Blender/issues/621): `ATTR_manip_wheel` after `ATTR_manip_drag_rotate` | A hand-written OBJ and XPlane2Blender's export | **Loads without errors.** The wheel itself needs someone to scroll in the cockpit; that wasn't tested. |

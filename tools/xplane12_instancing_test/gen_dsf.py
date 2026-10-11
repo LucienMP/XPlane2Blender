@@ -1,6 +1,7 @@
-"""
-Writes the two DSF text files for the instancing test and compiles them with Laminar's DSFTool:
-dsf_full (10,000 copies of objects/test.obj beside KSHN runway 05) and dsf_empty (no objects).
+r"""
+Writes the DSF text files for the tests and compiles them with Laminar's DSFTool:
+dsf_full (10,000 copies of objects/test.obj beside KSHN runway 05), dsf_empty (no objects)
+and dsf_visual (6 slots in a row in front of the camera, for scenes.py).
 
     python gen_dsf.py PATH\TO\DSFTool.exe
 """
@@ -31,7 +32,14 @@ for row in range(100):  # 100 x 100, 4 m apart, 60-456 m right of the centre lin
         lat, lon = offset(SLAT, SLON, 60 + col * 4.0, 60 + row * 4.0)
         objects.append(f"OBJECT 0 {lon:.8f} {lat:.8f} {HDG:.2f}")
 
-for name, lines in (("dsf_full", HEAD + ["OBJECT_DEF objects/test.obj", ""] + objects), ("dsf_empty", HEAD)):
+# Visual scenes: 6 slots side by side, 30 m ahead, 5 m apart (left to right from the cockpit)
+visual = [f"OBJECT_DEF objects/slot{i}.obj" for i in range(1, 7)] + [""]
+for i in range(6):
+    lat, lon = offset(SLAT, SLON, 30.0, -12.5 + 5.0 * i)
+    visual.append(f"OBJECT {i} {lon:.8f} {lat:.8f} {HDG:.2f}")
+
+for name, lines in (("dsf_full", HEAD + ["OBJECT_DEF objects/test.obj", ""] + objects), ("dsf_empty", HEAD),
+                    ("dsf_visual", HEAD + visual)):
     os.makedirs(os.path.join(HERE, name), exist_ok=True)
     txt = os.path.join(HERE, name + ".txt")
     open(txt, "w", newline="\n").write("\n".join(lines) + "\n")
