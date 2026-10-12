@@ -1,3 +1,5 @@
+import os
+
 import numpy
 import bpy
 
@@ -12,11 +14,26 @@ def ggx_distribution_cdf(x, alpha):
 def get_effective_gloss(file_path) -> float:
     alpha = 0.5
 
+    # '//' and plain relative paths are relative to the .blend, not to Blender's
+    # working directory, which is where images.load would have looked
+    file_path = bpy.path.abspath(file_path)
+    if not os.path.isabs(file_path) and bpy.data.filepath:
+        file_path = os.path.join(os.path.dirname(bpy.data.filepath), file_path)
     try:
         image = bpy.data.images.load(file_path)
     except RuntimeError:
         image = None
 
+    try:
+        return _effective_gloss(image, alpha)
+    finally:
+        # The image was only loaded to be read: it used to pile up in the .blend
+        # as decal.png, decal.png.001, ... on every export
+        if image is not None:
+            bpy.data.images.remove(image)
+
+
+def _effective_gloss(image, alpha: float) -> float:
     if image != None:
         precision = 100
         

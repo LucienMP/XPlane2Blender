@@ -24,7 +24,7 @@ class XPLANE_MT_xplane_export_log(bpy.types.Menu):
     def draw(self, context):
         self.layout.row().label(text="Export produced errors or warnings.")
         self.layout.row().label(
-            text="Please see the internal text file XPlane2Blender.log"
+            text="Please see the internal text file xplane2blender.log"
         )
 
 
@@ -196,7 +196,9 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             if bpy.context.blend_data.filepath != "":
                 filepath = os.path.dirname(bpy.context.blend_data.filepath)
                 # Something this? self.logfile = os.path.join(dir,name+'_'+time.strftime("%y-%m-%d-%H-%M-%S")+'_xplane2blender.log')
-                self.logFile = open(os.path.join(filepath, "xplane2blender.log"), "w")
+                self.logFile = open(
+                    os.path.join(filepath, "xplane2blender.log"), "w", encoding="utf-8"
+                )
                 logger.addTransport(XPlaneLogger.FileTransport(self.logFile), logLevels)
             else:
                 logger.error("Cannot create log file if .blend file is not saved")
@@ -218,11 +220,11 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         if not xplaneFile.get_xplane_objects():
             return False
 
-        if xplaneFile.filename.find("//") == 0:
-            xplaneFile.filename = xplaneFile.filename.replace("//", "", 1)
-
         # Change any backslashes to foward slashes for file paths
         xplaneFile.filename = xplaneFile.filename.replace("\\", "/")
+
+        if xplaneFile.filename.find("//") == 0:
+            xplaneFile.filename = xplaneFile.filename.replace("//", "", 1)
 
         if os.path.isabs(xplaneFile.filename):
             logger.error(
@@ -236,12 +238,13 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         # Make paths based on the absolute path
         # Write
         relpath = os.path.normpath(os.path.join(directory, xplaneFile.filename))
-        if not ".obj" in relpath:
+        if os.path.splitext(relpath)[1].lower() != ".obj":
             relpath += ".obj"
 
         fullpath = os.path.abspath(
             os.path.join(os.path.dirname(bpy.context.blend_data.filepath), relpath)
         )
+        xplaneFile.export_dir = os.path.dirname(fullpath)
         out = xplaneFile.write()
 
         if logger.hasErrors():
@@ -253,7 +256,7 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             except OSError as e:
                 logger.error(e)
             else:
-                with open(fullpath, "w") as objFile:
+                with open(fullpath, "w", encoding="utf-8") as objFile:
                     logger.info("Writing %s" % fullpath)
                     objFile.write(out)
                     logger.success("Wrote %s" % fullpath)

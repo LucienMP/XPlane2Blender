@@ -213,7 +213,11 @@ class XPlaneHeader:
         blenddir = os.path.dirname(bpy.context.blend_data.filepath)
 
         # normalize the exporpath
-        if os.path.isabs(self.xplaneFile.filename):
+        if self.xplaneFile.export_dir:
+            # The folder the OBJ is really written to (File > Export can pick any),
+            # so resource paths are relative to the OBJ, not to the .blend
+            exportdir = self.xplaneFile.export_dir
+        elif os.path.isabs(self.xplaneFile.filename):
             exportdir = os.path.dirname(os.path.normpath(self.xplaneFile.filename))
         else:
             exportdir = os.path.dirname(
@@ -328,7 +332,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.rgb_decal2_red_key, self.xplaneFile.options.rgb_decal2_green_key, self.xplaneFile.options.rgb_decal2_blue_key, self.xplaneFile.options.rgb_decal2_alpha_key,
                                 self.xplaneFile.options.rgb_decal2_modulator, self.xplaneFile.options.rgb_decal2_constant,
                                 self.xplaneFile.options.alpha_decal2_red_key, self.xplaneFile.options.alpha_decal2_green_key, self.xplaneFile.options.alpha_decal2_blue_key, self.xplaneFile.options.alpha_decal2_alpha_key,
-                                self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_modulator,
+                                self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_constant,
                                 self.get_path_relative_to_dir(
                                     self.xplaneFile.options.file_decal2, exportdir
                                 )
@@ -345,7 +349,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.rgb_decal2_red_key, self.xplaneFile.options.rgb_decal2_green_key, self.xplaneFile.options.rgb_decal2_blue_key, self.xplaneFile.options.rgb_decal2_alpha_key,
                                 self.xplaneFile.options.rgb_decal2_modulator, self.xplaneFile.options.rgb_decal2_constant,
                                 self.xplaneFile.options.alpha_decal2_red_key, self.xplaneFile.options.alpha_decal2_green_key, self.xplaneFile.options.alpha_decal2_blue_key, self.xplaneFile.options.alpha_decal2_alpha_key,
-                                self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_modulator,
+                                self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_constant,
                                 self.get_path_relative_to_dir(
                                     self.xplaneFile.options.file_decal2, exportdir
                                 )
@@ -506,11 +510,14 @@ class XPlaneHeader:
                 xplane_version >= 1210 and (isAircraft or isCockpit) and has_thermal_system
             ):
                 if rain_props.thermal_texture:
-                    self.attributes["THERMAL_texture"].setValue(
-                        self.get_path_relative_to_dir(
-                            rain_props.thermal_texture, exportdir
+                    try:
+                        self.attributes["THERMAL_texture"].setValue(
+                            self.get_path_relative_to_dir(
+                                rain_props.thermal_texture, exportdir
+                            )
                         )
-                    )
+                    except (OSError, ValueError):
+                        pass
                     
                 for i in range(1, 5):
                     if getattr(rain_props, f"thermal_source_{i}_enabled"):
@@ -547,11 +554,14 @@ class XPlaneHeader:
                 xplane_version >= 1200 and (isAircraft or isCockpit) and has_wiper_system
             ):
                 if rain_props.wiper_texture:
-                    self.attributes["WIPER_texture"].setValue(
-                        self.get_path_relative_to_dir(
-                            rain_props.wiper_texture, exportdir
+                    try:
+                        self.attributes["WIPER_texture"].setValue(
+                            self.get_path_relative_to_dir(
+                                rain_props.wiper_texture, exportdir
+                            )
                         )
-                    )
+                    except (OSError, ValueError):
+                        pass
 
                 for i in range(1, 5):
                     if getattr(rain_props, f"wiper_{i}_enabled"):
@@ -568,7 +578,7 @@ class XPlaneHeader:
                         if self.attributes["WIPER_param"].value[0] == None:
                             del self.attributes["WIPER_param"].value[0]
                         self.attributes["WIPER_param"].value.append(
-                            f"{wiper.dataref}    {wiper.start}   {wiper.end}    {wiper.nominal_width}"
+                            f"{wiper.dataref}    {floatToStr(wiper.start)}   {floatToStr(wiper.end)}    {floatToStr(wiper.nominal_width)}"
                         )
                     else:
                         break
@@ -643,7 +653,7 @@ class XPlaneHeader:
 
                 # draped bump level
                 if mat.options.bump_level != 1.0:
-                    self.attributes["BUMP_LEVEL"].setValue(mat.bump_level)
+                    self.attributes["BUMP_LEVEL"].setValue(mat.options.bump_level)
 
                 # draped no blend
                 self.attributes["NO_BLEND"].setValue(
@@ -1056,8 +1066,10 @@ class XPlaneHeader:
         Raises ValueError or OSError for invalid paths or use of `//` not at the start of the respath
         """
         res_path = res_path.strip()
-        if res_path.startswith("./") or res_path.startswith(".\\"):
-            res_path = res_path.replace("./", "//").replace(".\\", "//").strip()
+        if res_path.startswith(("./", ".\\")):
+            # Only the leading './' means the .blend folder; replacing every './'
+            # turned './../textures/a.png' into '//.//textures/a.png'
+            res_path = "//" + res_path[2:]
 
         # 9. '//', or none means "none", empty is not written -> str.replace
         if res_path == "":
@@ -1172,7 +1184,8 @@ class XPlaneHeader:
         # attributes
         for attr_name, attr in self.attributes.items():
             values = attr.value
-            if values[0] != None:
+            # An invalid resource path leaves an emptied value list behind
+            if values and values[0] is not None:
                 if len(values) > 1:
                     for vi in range(0, len(values)):
                         o += "%s\t%s\n" % (attr.name, attr.getValueAsString(vi))
