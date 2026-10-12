@@ -2,6 +2,14 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 
+# THIS FORK'S INFORMATION
+
+This is a fork of the original XPlane2Blender for Blender 4.x, updated to 5.x from [X-Plane to Blender 5.0 on X-Plane Forums](https://forums.x-plane.org/files/file/99499-xplane2blender-v5-unnofficial-for-blender-5/) with additional updates and PR merged into it.
+
+1. Check README.PR.md
+2. Check README-5.0.md
+
+
 # Introduction
 This addon for Blender makes it possible to export models made in Blender to the X-Plane object format (.obj).
 
