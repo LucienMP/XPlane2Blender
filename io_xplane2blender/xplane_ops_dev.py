@@ -122,9 +122,14 @@ class SCENE_OT_dev_rerun_updater(bpy.types.Operator):
         logger.addTransport(xplane_helpers.XPlaneLogger.ConsoleTransport())
 
         fake_version_str = bpy.context.scene.xplane.dev_fake_xplane2blender_version
-        io_xplane2blender.xplane_updater.update(
-            xplane_helpers.VerStruct.parse_version(fake_version_str), logger
-        )
+        fake_version = xplane_helpers.VerStruct.parse_version(fake_version_str)
+        if fake_version is None:
+            self.report(
+                {"ERROR"},
+                f"'{fake_version_str}' isn't a full version string, e.g. 4.2.0-rc.1+117.20200101120000",
+            )
+            return {"CANCELLED"}
+        io_xplane2blender.xplane_updater.update(fake_version, logger)
         return {"FINISHED"}
 
 

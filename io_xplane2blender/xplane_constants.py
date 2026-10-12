@@ -184,7 +184,7 @@ MANIPULATORS_MOUSE_WHEEL = (
     MANIP_DRAG_AXIS_PIX,
 )
 
-MANIPULATORS_OPT_IN = MANIP_DRAG_AXIS
+MANIPULATORS_OPT_IN = {MANIP_DRAG_AXIS}
 
 
 def _get_all_manipulators():
@@ -294,7 +294,9 @@ LIGHT_PARAM_SIZE_MIN = 0.001
 LOGGER_LEVEL_ERROR = "error"
 LOGGER_LEVEL_INFO = "info"
 LOGGER_LEVEL_SUCCESS = "success"
-LOGGER_LEVEL_WARN = "warn"
+# Must match XPlaneLogger.warn's message type, or transports made with
+# LOGGER_LEVELS_ALL (the Startup and Updater logs) drop every warning
+LOGGER_LEVEL_WARN = "warning"
 
 LOGGER_LEVELS_ALL = (
     LOGGER_LEVEL_ERROR,

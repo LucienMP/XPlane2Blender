@@ -185,8 +185,6 @@ def _change_pre_3_3_0_properties(logger: xplane_helpers.XPlaneLogger) -> None:
     Or something.
     """
     for scene in bpy.data.scenes:
-        # set compositeTextures to False
-        scene.xplane.compositeTextures = False
         for layer in [coll.xplane.layer for coll in scene.collection.children]:
             # set autodetectTextures to False
             layer.autodetectTextures = False
@@ -757,9 +755,6 @@ def load_handler(dummy):
     logger.info(f"Added '{current_version}' to version history")
 
 
-bpy.app.handlers.load_post.append(load_handler)
-
-
 @persistent
 def save_handler(dummy):
     for scene in bpy.data.scenes:
@@ -768,4 +763,20 @@ def save_handler(dummy):
     _synchronize_last_version_across_histories(xplane_helpers.VerStruct.current())
 
 
-bpy.app.handlers.save_pre.append(save_handler)
+def register():
+    """
+    Adds the file handlers. They used to be added when the module was imported,
+    so they stayed (and raised) after the add-on was disabled, and were added
+    twice after Reload Scripts
+    """
+    if load_handler not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(load_handler)
+    if save_handler not in bpy.app.handlers.save_pre:
+        bpy.app.handlers.save_pre.append(save_handler)
+
+
+def unregister():
+    if load_handler in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(load_handler)
+    if save_handler in bpy.app.handlers.save_pre:
+        bpy.app.handlers.save_pre.remove(save_handler)

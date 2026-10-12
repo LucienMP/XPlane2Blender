@@ -382,7 +382,7 @@ class VerStruct:
             and self.addon_version[1] >= 0
             and self.addon_version[2] >= 0
         ):
-            if xplane_constants.BUILD_TYPES.index(self.build_type) != -1:
+            if self.build_type in xplane_constants.BUILD_TYPES:
                 if (
                     self.build_type == xplane_constants.BUILD_TYPE_DEV
                     or self.build_type == xplane_constants.BUILD_TYPE_LEGACY

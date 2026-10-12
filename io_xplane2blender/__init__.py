@@ -75,12 +75,14 @@ def register():
     xplane_ops.register()
     xplane_ops_dev.register()
     xplane_ui.register()
+    xplane_updater.register()
     bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 
 # Function: unregister
 # Unregisters the addon and all its classes and removes the entry from the menu.
 def unregister():
+    xplane_updater.unregister()
     xplane_export.unregister()
     xplane_ui.unregister()
     xplane_ops.unregister()

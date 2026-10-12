@@ -91,7 +91,7 @@ def check_bone_has_parent(
         if log_errors:
             logger.error(
                 "{} manipulator attached to {} must have a parent".format(
-                    manipulator.manip.get_effective_type_name(), bone.getblendername()
+                    manipulator.manip.get_effective_type_name(), bone.getBlenderName()
                 )
             )
         return False
@@ -237,7 +237,9 @@ def check_bone_is_not_animated_for_translation(
     if log_errors:
         assert manipulator
 
-    if check_bone_is_animated_for_translation(bone, log_errors, manipulator):
+    # The check is passed log_errors=False: its own error would say the bone must
+    # be animated, the opposite of what this checks
+    if check_bone_is_animated_for_translation(bone, False, manipulator):
         if log_errors:
             logger.error(
                 "{} manipulator attached to {} must not have location keyframes".format(
@@ -266,7 +268,7 @@ def check_bone_parent_is_animated_for_rotation(
 
 
 def check_bone_parent_is_animated_for_translation(
-    bone: XPlaneBone, log_errors: bool = True
+    bone: XPlaneBone, log_errors: bool = True, manipulator: "XPlaneManipulator" = None
 ) -> bool:
     assert bone.parent
     if not check_bone_is_animated_for_translation(bone.parent, log_errors, manipulator):
@@ -310,13 +312,14 @@ def check_bones_drag_detent_are_orthogonal(
 
     dot_product = drag_axis.dot(detent_axis)
 
-    if not -0.01 < dot_product < 0.01 and log_errors:
-        logger.error(
-            "Location animation for the {} manipulator attached to {} must not be along the main drag animation axis".format(
-                manipulator.manip.get_effective_type_name(),
-                detent_bone.getBlenderName(),
+    if not -0.01 < dot_product < 0.01:
+        if log_errors:
+            logger.error(
+                "Location animation for the {} manipulator attached to {} must not be along the main drag animation axis".format(
+                    manipulator.manip.get_effective_type_name(),
+                    detent_bone.getBlenderName(),
+                )
             )
-        )
         return False
     else:
         return True

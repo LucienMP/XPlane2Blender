@@ -186,10 +186,7 @@ class OBJECT_PT_xplane(bpy.types.Panel):
     def poll(self, context):
         obj = context.object
 
-        if obj.type in ("MESH", "EMPTY", "ARMATURE", "LIGHT"):
-            return True
-        else:
-            return False
+        return bool(obj) and obj.type in ("MESH", "EMPTY", "ARMATURE", "LIGHT")
 
     def draw(self, context):
         obj = context.object
@@ -1391,7 +1388,7 @@ def material_layout(layout: UILayout, active_material: bpy.types.Material) -> No
     light_level_layout(
         layout,
         active_material,
-        paired_dataref_prop="bpy.context.active_object.data.materials[0].xplane.lightLevel_dataref",
+        paired_dataref_prop="bpy.context.active_object.active_material.xplane.lightLevel_dataref",
     )
 
     # instancing effects
@@ -1423,7 +1420,12 @@ def custom_layout(
     row.label(text="Custom Properties")
     row.operator("object.add_xplane_" + op_type + "_attribute")
     box = layout.box()
-    for i, attr in enumerate(has_custom_props.xplane.customAttributes):
+    # The light operators act on the Light datablock, so show that collection:
+    # "Add Light Property" used to add invisible attributes to it
+    custom_attributes_owner = (
+        has_custom_props.data if op_type == "light" else has_custom_props
+    )
+    for i, attr in enumerate(custom_attributes_owner.xplane.customAttributes):
         subbox = box.box()
         subrow = subbox.row()
         subrow.prop(attr, "name")
@@ -1526,7 +1528,13 @@ def animation_layout(
         subrow = subbox.row()
 
         if attr.anim_type in ("transform", "translate", "rotate"):
-            if bpy.context.object.animation_data:
+            # Bone dataref keyframes live on the armature data's Action
+            anim_data = (
+                bpy.context.object.data.animation_data
+                if is_bone
+                else bpy.context.object.animation_data
+            )
+            if anim_data:
                 if is_bone:
                     subrow.operator(
                         "bone.add_xplane_dataref_keyframe", text="", icon="KEY_HLT"

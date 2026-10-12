@@ -98,6 +98,10 @@ def UpdateLayerGroupsOnVersionChange(self, context):
     for datablock in (*bpy.data.collections, *bpy.data.objects):
         if datablock.library is None and datablock.xplane.layer.layer_group == "":
             datablock.xplane.layer.layer_group = LAYER_GROUP_NONE
+    # The manipulator type is a dynamic enum too (Device needs 12.10, others 11.10)
+    for obj in bpy.data.objects:
+        if obj.library is None and obj.xplane.manip.type == "":
+            obj.xplane.manip.type = MANIP_DRAG_XY
 
 
 class XPlane2BlenderVersion(bpy.types.PropertyGroup):
@@ -1018,8 +1022,8 @@ class XPlaneManipulatorSettings(bpy.types.PropertyGroup):
         '''
         The description returned will the same as in the UI
         '''
-        items = xplane_props.XPlaneManipulatorSettings.bl_rna.properties['type'].enum_items
-        return next(filter(lambda item: item[0] == self.type, items))[2]#.description
+        items = type(self).bl_rna.properties['type'].enum_items
+        return items[self.type].description
 
 
     def get_effective_type_name(self) -> str:
@@ -2866,5 +2870,17 @@ def register():
 
 
 def unregister():
+    # Without this, a disabled add-on's handlers and panels found the pointer
+    # properties of unregistered classes
+    for bl_type in (
+        bpy.types.Collection,
+        bpy.types.Scene,
+        bpy.types.Object,
+        bpy.types.Bone,
+        bpy.types.Material,
+        bpy.types.Light,
+    ):
+        if hasattr(bl_type, "xplane"):
+            del bl_type.xplane
     for c in reversed(_classes):
         bpy.utils.unregister_class(c)

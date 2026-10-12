@@ -102,6 +102,7 @@ def getDatarefValuePath(index: int, bone: Optional[bpy.types.Bone] = None) -> st
 class OBJECT_OT_add_xplane_axis_detent_range(bpy.types.Operator):
     bl_label = "Add X-Plane Axis Detent Range"
     bl_idname = "object.add_xplane_axis_detent_range"
+    bl_options = {"INTERNAL"}
     bl_description = "Add X-Plane Axis Detent Range"
 
     def execute(self, context):
@@ -113,6 +114,7 @@ class OBJECT_OT_add_xplane_axis_detent_range(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_axis_detent_range(bpy.types.Operator):
     bl_label = "Remove Axis Detent Range"
     bl_idname = "object.remove_xplane_axis_detent_range"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove axis detent range"
 
     index: bpy.props.IntProperty()
@@ -126,6 +128,7 @@ class OBJECT_OT_remove_xplane_axis_detent_range(bpy.types.Operator):
 class COLLECTION_OT_add_xplane_layer_attribute(bpy.types.Operator):
     bl_label = "Add Layer Property"
     bl_idname = "collection.add_xplane_layer_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Layer Property"
 
     collection_name: bpy.props.StringProperty()
@@ -139,6 +142,7 @@ class COLLECTION_OT_add_xplane_layer_attribute(bpy.types.Operator):
 class COLLECTION_OT_remove_xplane_layer_attribute(bpy.types.Operator):
     bl_label = "Remove Layer Property"
     bl_idname = "collection.remove_xplane_layer_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Layer Property"
 
     collection_name: bpy.props.StringProperty()
@@ -153,6 +157,7 @@ class COLLECTION_OT_remove_xplane_layer_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_layer_attribute(bpy.types.Operator):
     bl_label = "Add Layer Property"
     bl_idname = "object.add_xplane_layer_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Layer Property"
 
     index: bpy.props.IntProperty()
@@ -166,6 +171,7 @@ class OBJECT_OT_add_xplane_layer_attribute(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_layer_attribute(bpy.types.Operator):
     bl_label = "Remove Layer Property"
     bl_idname = "object.remove_xplane_layer_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Layer Property"
 
     index: bpy.props.IntProperty()
@@ -181,6 +187,7 @@ class OBJECT_OT_remove_xplane_layer_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_object_attribute(bpy.types.Operator):
     bl_label = "Add Object Property"
     bl_idname = "object.add_xplane_object_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Object Property"
 
     def execute(self, context):
@@ -194,6 +201,7 @@ class OBJECT_OT_add_xplane_object_attribute(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_object_attribute(bpy.types.Operator):
     bl_label = "Remove Object Property"
     bl_idname = "object.remove_xplane_object_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Object Property"
 
     index: bpy.props.IntProperty()
@@ -209,6 +217,7 @@ class OBJECT_OT_remove_xplane_object_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_object_anim_attribute(bpy.types.Operator):
     bl_label = "Add Animation Property"
     bl_idname = "object.add_xplane_object_anim_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Animation Property"
 
     def execute(self, context):
@@ -222,6 +231,7 @@ class OBJECT_OT_add_xplane_object_anim_attribute(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_object_anim_attribute(bpy.types.Operator):
     bl_label = "Remove Animation Property"
     bl_idname = "object.remove_xplane_object_anim_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Animation Property"
 
     index: bpy.props.IntProperty()
@@ -237,6 +247,7 @@ class OBJECT_OT_remove_xplane_object_anim_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_material_attribute(bpy.types.Operator):
     bl_label = "Add Material Property"
     bl_idname = "object.add_xplane_material_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Material Property"
 
     def execute(self, context):
@@ -250,6 +261,7 @@ class OBJECT_OT_add_xplane_material_attribute(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_material_attribute(bpy.types.Operator):
     bl_label = "Remove Material Property"
     bl_idname = "object.remove_xplane_material_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Material Property"
 
     index: bpy.props.IntProperty()
@@ -265,6 +277,7 @@ class OBJECT_OT_remove_xplane_material_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_light_attribute(bpy.types.Operator):
     bl_label = "Add Light Property"
     bl_idname = "object.add_xplane_light_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Add a custom X-Plane Light Property"
 
     def execute(self, context):
@@ -278,6 +291,7 @@ class OBJECT_OT_add_xplane_light_attribute(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_light_attribute(bpy.types.Operator):
     bl_label = "Remove Light Property"
     bl_idname = "object.remove_xplane_light_attribute"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the custom X-Plane Light Property"
 
     index: bpy.props.IntProperty()
@@ -293,6 +307,7 @@ class OBJECT_OT_remove_xplane_light_attribute(bpy.types.Operator):
 class OBJECT_OT_add_xplane_dataref(bpy.types.Operator):
     bl_label = "Add Dataref"
     bl_idname = "object.add_xplane_dataref"
+    bl_options = {"INTERNAL"}
     bl_description = "Add an X-Plane Dataref"
 
     def execute(self, context):
@@ -306,6 +321,7 @@ class OBJECT_OT_add_xplane_dataref(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
     bl_label = "Remove Dataref"
     bl_idname = "object.remove_xplane_dataref"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the X-Plane Dataref"
 
     index: bpy.props.IntProperty()
@@ -323,6 +339,7 @@ class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
 class OBJECT_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
     bl_label = "Add Dataref keyframe"
     bl_idname = "object.add_xplane_dataref_keyframe"
+    bl_options = {"INTERNAL"}
     bl_description = "Add/Update an X-Plane Dataref keyframe"
 
     # index here refers to the index of the datarefs collection,
@@ -344,6 +361,7 @@ class OBJECT_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
     bl_label = "Remove Dataref keyframe"
     bl_idname = "object.remove_xplane_dataref_keyframe"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the X-Plane Dataref keyframe"
 
     # index here refers to the index of the datarefs collection,
@@ -363,6 +381,7 @@ class OBJECT_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
 class COLLECTION_OT_add_xplane_export_path_directive(bpy.types.Operator):
     bl_label = "Add Laminar Library Directive"
     bl_idname = "collection.add_xplane_export_path_directive"
+    bl_options = {"INTERNAL"}
     bl_description = "Add Laminar Library Directive"
 
     collection_name: bpy.props.StringProperty()
@@ -376,6 +395,7 @@ class COLLECTION_OT_add_xplane_export_path_directive(bpy.types.Operator):
 class COLLECTION_OT_remove_xplane_export_path_directive(bpy.types.Operator):
     bl_label = "Remove Laminar Library Directive"
     bl_idname = "collection.remove_xplane_export_path_directive"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove Laminar Library Directive"
 
     collection_name: bpy.props.StringProperty()
@@ -390,6 +410,7 @@ class COLLECTION_OT_remove_xplane_export_path_directive(bpy.types.Operator):
 class OBJECT_OT_add_xplane_export_path_directive(bpy.types.Operator):
     bl_label = "Add Laminar Library Directive"
     bl_idname = "object.add_xplane_export_path_directive"
+    bl_options = {"INTERNAL"}
     bl_description = "Add Laminar Library Directive"
 
     def execute(self, context):
@@ -401,6 +422,7 @@ class OBJECT_OT_add_xplane_export_path_directive(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_export_path_directive(bpy.types.Operator):
     bl_label = "Remove Laminar Library Directive"
     bl_idname = "object.remove_xplane_export_path_directive"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove Laminar Library Directive"
 
     index: bpy.props.IntProperty()
@@ -416,6 +438,7 @@ class OBJECT_OT_remove_xplane_export_path_directive(bpy.types.Operator):
 class BONE_OT_add_xplane_dataref(bpy.types.Operator):
     bl_label = "Add Dataref"
     bl_idname = "bone.add_xplane_dataref"
+    bl_options = {"INTERNAL"}
     bl_description = "Add/Update an X-Plane Dataref"
 
     def execute(self, context):
@@ -430,6 +453,7 @@ class BONE_OT_add_xplane_dataref(bpy.types.Operator):
 class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
     bl_label = "Remove Dataref"
     bl_idname = "bone.remove_xplane_dataref"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the X-Plane Dataref"
 
     index: bpy.props.IntProperty()
@@ -449,6 +473,7 @@ class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
 class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
     bl_label = "Add Dataref keyframe"
     bl_idname = "bone.add_xplane_dataref_keyframe"
+    bl_options = {"INTERNAL"}
     bl_description = "Add/Update an X-Plane Dataref keyframe"
 
     # index here refers to the index of the datarefs collection,
@@ -477,6 +502,7 @@ class BONE_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
 class BONE_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
     bl_label = "Remove Dataref keyframe"
     bl_idname = "bone.remove_xplane_dataref_keyframe"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove the X-Plane Dataref keyframe"
 
     # index here refers to the index of the datarefs collection,
@@ -499,6 +525,7 @@ class BONE_OT_remove_xplane_dataref_keyframe(bpy.types.Operator):
 class OBJECT_OT_add_xplane_object_condition(bpy.types.Operator):
     bl_label = "Add Condition"
     bl_idname = "object.add_xplane_object_condition"
+    bl_options = {"INTERNAL"}
     bl_description = "Add an X-Plane condition"
 
     def execute(self, context):
@@ -512,6 +539,7 @@ class OBJECT_OT_add_xplane_object_condition(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_object_condition(bpy.types.Operator):
     bl_label = "Remove Condition"
     bl_idname = "object.remove_xplane_object_condition"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove X-Plane Condition"
 
     index: bpy.props.IntProperty()
@@ -528,6 +556,7 @@ class OBJECT_OT_remove_xplane_object_condition(bpy.types.Operator):
 class OBJECT_OT_add_xplane_material_condition(bpy.types.Operator):
     bl_label = "Add Condition"
     bl_idname = "object.add_xplane_material_condition"
+    bl_options = {"INTERNAL"}
     bl_description = "Add an X-Plane condition"
 
     def execute(self, context):
@@ -541,6 +570,7 @@ class OBJECT_OT_add_xplane_material_condition(bpy.types.Operator):
 class OBJECT_OT_remove_xplane_material_condition(bpy.types.Operator):
     bl_label = "Remove Condition"
     bl_idname = "object.remove_xplane_material_condition"
+    bl_options = {"INTERNAL"}
     bl_description = "Remove X-Plane Condition"
 
     index: bpy.props.IntProperty()
@@ -720,7 +750,7 @@ class XPLANE_OT_bake_wiper_gradient_texture(bpy.types.Operator):
     )
 
     debug_master_filepath: bpy.props.StringProperty(
-        "Override Final Texture Path",
+        name="Override Final Texture Path",
         description="Manual override to set the finished image. Can include '//'.",
     )
 
@@ -731,7 +761,7 @@ class XPLANE_OT_bake_wiper_gradient_texture(bpy.types.Operator):
     )
 
     debug_slots: bpy.props.BoolVectorProperty(
-        "Slots To Bake",
+        name="Slots To Bake",
         description="'False' slots are skipped, without preventing slots afterwards from being baked themselves",
         default=(True,) * 4,
         size=4,
