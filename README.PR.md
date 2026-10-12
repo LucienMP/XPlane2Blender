@@ -197,11 +197,15 @@ Most files export exactly as before. These change:
 
 - **#701:** a custom `ATTR_light_level` on a parent is reset for each child. It's understood, but fixing it changes output, so it needs your decision.
 - **#461, #576:** design choices. The findings are in REVIEW-5.0.md.
-- **#747, #755:** not reproducible on Blender 5.2 and X-Plane 12.4.4.
+- **#755:** not reproducible on X-Plane 12.4.4.
+
+## Second pass: bugs without an issue
+
+After the fixes above, the whole add-on was read looking for unreported bugs. The results are in [REVIEW-5.0.md section 7](REVIEW-5.0.md#7-second-pass-code-audit). The most important: mirrored (negative-scale) meshes exported inside out (#747, which an earlier test couldn't detect), `ATTR_hud_reset` and `ATTR_poly_os 0` were never written, attributes set inside an `IF` block were assumed to still be in effect after `ENDIF`, custom attribute weights had been ignored since 4.1, texture paths were wrong when exporting with File > Export to another folder, and a light aimed exactly opposite its lights.txt direction got a zero rotation axis. Seven crashes became error messages.
 
 ## Issues closed by this PR
 
-Fixes #758, fixes #754, fixes #743, fixes #762, fixes #190, fixes #763, fixes #751, fixes #752, fixes #704, fixes #565, fixes #741, fixes #473, fixes #577, fixes #370, fixes #738, fixes #368, fixes #489, fixes #621, fixes #730, fixes #643, fixes #516, fixes #709, fixes #439, fixes #285, fixes #515, fixes #279, fixes #766, fixes #710
+Fixes #758, fixes #754, fixes #743, fixes #762, fixes #190, fixes #763, fixes #751, fixes #752, fixes #704, fixes #565, fixes #741, fixes #473, fixes #577, fixes #370, fixes #738, fixes #368, fixes #489, fixes #621, fixes #730, fixes #643, fixes #516, fixes #709, fixes #439, fixes #285, fixes #515, fixes #279, fixes #766, fixes #710, fixes #747
 
 Closes #765, closes #767, closes #753, closes #759, closes #760, closes #761, closes #764
 

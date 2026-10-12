@@ -16,7 +16,8 @@ The unofficial forum port reviewed in section 2 is kept unchanged on the branch 
 4. [Upstream issues](#4-upstream-issues)
 5. [Other changes made for 5.0](#5-other-changes-made-for-50)
 6. [How 5.0 was tested](#6-how-50-was-tested)
-7. [Appendix: triage of all open upstream issues](#appendix-triage-of-all-open-upstream-issues-october-2026)
+7. [Second pass: code audit](#7-second-pass-code-audit)
+8. [Appendix: triage of all open upstream issues](#appendix-triage-of-all-open-upstream-issues-october-2026)
 
 ---
 
@@ -164,7 +165,7 @@ All 9 pull requests open on X-Plane/XPlane2Blender in October 2026 were reviewed
 
 | Issue | Title | Reported by | Result |
 |---|---|---|---|
-| [#747](https://github.com/X-Plane/XPlane2Blender/issues/747) | Mirrored (negative-scale) linked duplicates export with inverted normals | [@NuanFeng520](https://github.com/NuanFeng520) | Mirrored children (−X, and −X−Y, with and without custom normals) export with triangles facing their normals on Blender 5.2. No code change; a regression test was added in [`0447259`](https://github.com/LucienMP/XPlane2Blender/commit/04472594d2fadbe6cbb0cda2eea246a65bb76d41). |
+| [#747](https://github.com/X-Plane/XPlane2Blender/issues/747) | Mirrored (negative-scale) linked duplicates export with inverted normals | [@NuanFeng520](https://github.com/NuanFeng520) | **Correction: reproducible, and fixed in the second pass** ([`8ca9376`](https://github.com/LucienMP/XPlane2Blender/commit/8ca93768)). The first regression test only compared each triangle's winding with its normals, which also passes when both are inverted, which is exactly what happened: a −X child exported inside out. The −X−Y case passed because its determinant is positive. The test now checks normals and winding against the cube's centre. See [section 7](#7-second-pass-code-audit). |
 | [#755](https://github.com/X-Plane/XPlane2Blender/issues/755) | Automatic light with spot_params_bb_pm : wrong intensity parameter | [@cpot](https://github.com/cpot) | **Not reproducible in X-Plane 12.4.4, no change.** The issue says `500cd` isn't understood and a bare number must be used. In X-Plane 12.4.4 ([test](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)), `LIGHT_PARAM spot_params_bb_pm` with `50cd`/`500cd`/`5000cd` lights, brighter for higher values, and XPlane2Blender's own Automatic light export (`5000cd`) lights. Bare numbers are on a different scale: `1` and `5` light, `50` and `500` give nothing, so the suggested change would make typical lights invisible. It may have behaved differently in the X-Plane version the reporter used (October 2025). |
 
 ### Needs your decision
@@ -227,6 +228,70 @@ No upstream issue asks for this; it was added for X-Plane 12's seasonal objects 
 
 ---
 
+## 7. Second pass: code audit
+
+After the work above, the whole add-on was read file by file looking for bugs that nobody had reported (branch `blender5v2`, 13 October 2026). None of these has an upstream issue unless noted; most are in upstream's code too. Each one has a commit, and a test where the output changes.
+
+### Export output
+
+| Bug | Commit | Effect |
+|---|---|---|
+| **Mirrored meshes export inside out** ([#747](https://github.com/X-Plane/XPlane2Blender/issues/747), wrongly recorded above as not reproducible) | [`8ca9376`](https://github.com/LucienMP/XPlane2Blender/commit/8ca93768) | A child with a negative-determinant transform (scale -1 on a mirrored wing, gear or linked duplicate) was culled by X-Plane from the outside. The corner normals of a mirrored mesh are now taken in local space and rotated with the normal matrix, which also keeps custom normals right, and its loops are written in their already-clockwise order. |
+| **`ATTR_hud_reset` was never written** | [`ca4d597`](https://github.com/LucienMP/XPlane2Blender/commit/ca4d5976) | Every mesh after a HUD glass mesh was drawn as HUD glass. The `test_hud_glass_and_reset` fixture had recorded the bug. |
+| **`ATTR_poly_os 0` was never written** | same | A polygon offset stayed on for every later mesh. |
+| **Attribute state after `ENDIF`** | same | Attributes set inside an `IF` block (added for #284) were treated as still in effect afterwards. X-Plane skips a false block. The next object that needs them writes them again, and the next one that doesn't resets them. |
+| **Custom attribute weights were ignored** | same | `XPlaneAttributes.order()` has been a no-op since 4.1 (re-assigning an `OrderedDict` key keeps its place). |
+| **Instanced scenery materials: blend mode check** | same | Compared the X-Plane 9 checkbox, not the X-Plane 10+ blend mode, so differing modes passed validation and broke instancing. |
+| **Decal 2 alpha constant** | [`b0ffa20`](https://github.com/LucienMP/XPlane2Blender/commit/b0ffa209) | `DECAL_PARAMS` for the second detail texture wrote the alpha modulator twice. |
+| **Resource paths with File > Export** | same | Texture, decal, particle and rain paths were relative to the .blend's folder, not to the folder the OBJ was written to. Only the "Export OBJs" button was right. |
+| **`./../textures/a.png`** | same | A leading `./` replaced every `./`, resolving one folder too deep. |
+| **`WIPER_param` float noise** | same | `0.6599998474121094` instead of `0.66`. |
+| **Light aimed exactly opposite its lights.txt direction** | [`79121a9`](https://github.com/LucienMP/XPlane2Blender/commit/79121a99) | Wrote `ANIM_rotate 0 0 0 180 180`, which X-Plane ignores, so the light pointed the wrong way. |
+| **Negative loop values** (#767) | [`fcfeac5`](https://github.com/LucienMP/XPlane2Blender/commit/fcfeac55) | Allowed by the UI since 5.0 but never written. |
+| **Keyframes on fractional frames** | same | Left out of the frame scan and silently given frame 1's transform. Now read at the nearest whole frame, with a warning. |
+
+### Crashes (tracebacks instead of an error message)
+
+| Bug | Commit |
+|---|---|
+| A keyframe on a dataref's loop or show/hide value (Blender lets you key them from the panel) | [`fcfeac5`](https://github.com/LucienMP/XPlane2Blender/commit/fcfeac55) |
+| A draped reference material with a bump level other than 1 | [`b0ffa20`](https://github.com/LucienMP/XPlane2Blender/commit/b0ffa209) |
+| An invalid decal, thermal or wiper texture path | same |
+| lights.txt's `NULL` argument (`object_v7`) with a Named or Automatic light | [`79121a9`](https://github.com/LucienMP/XPlane2Blender/commit/79121a99) |
+| A Device manipulator after lowering the scene's X-Plane version | [`be9aceb`](https://github.com/LucienMP/XPlane2Blender/commit/be9acebd) |
+| Saving after disabling the add-on (handlers and pointer properties left behind) | same |
+| A Commands.txt in another encoding, or ending without a newline | [`6ec2b40`](https://github.com/LucienMP/XPlane2Blender/commit/6ec2b40b) |
+
+### UI, logs and tools
+
+| Bug | Commit |
+|---|---|
+| "Add Light Property" added invisible attributes to the Light datablock, which were exported | [`be9aceb`](https://github.com/LucienMP/XPlane2Blender/commit/be9acebd) |
+| The material Light Level dataref search filled in the first material slot, not the active one | same |
+| Bone dataref keyframe buttons hidden unless the armature object itself was animated | same |
+| The Startup and Updater logs dropped every warning (`LOGGER_LEVEL_WARN` didn't match the logger) | same |
+| The keyframe cache survived a failed export, so the next export used stale transforms | [`fcfeac5`](https://github.com/LucienMP/XPlane2Blender/commit/fcfeac55) |
+| Decal gloss estimation leaked an image datablock into the .blend on every export | [`b0ffa20`](https://github.com/LucienMP/XPlane2Blender/commit/b0ffa209) |
+| Scene report CSV (#764) reported the wrong fields for drag axis, axis knob, axis switch and detent manipulators | [`6ec2b40`](https://github.com/LucienMP/XPlane2Blender/commit/6ec2b40b) |
+| DataRefs.txt failed on a blank line or a UTF-8 BOM | same |
+| `tests.py --continue` exited 0 after failures; `mkbuild.py` rejected every build number and never failed on tests | [`282a3a3`](https://github.com/LucienMP/XPlane2Blender/commit/282a3a39) |
+
+### Changes to exported OBJs
+
+Besides the fixes above: `ATTR_hud_reset` and `ATTR_poly_os 0` now appear where they were missing, objects after an `ENDIF` may repeat or reset attributes, mirrored meshes have their normals and winding flipped back, and custom attributes with a weight are ordered by it. Two fixtures changed (`test_hud_glass_and_reset.obj`, `test_materials.obj`), both checked line by line.
+
+### Found but left for a decision
+
+- **Drag Rotate axis rounding** (`xplane_manipulator.py`, `fmt_value`): a precedence bug makes the pivot axis of `ATTR_manip_drag_rotate` go through `.3f` rounding although the comment says vectors must not be rounded (about 0.03 degrees for a non-axis-aligned axis). Fixing it changes many manipulator fixtures.
+- **Custom billboard light alpha**: `LIGHT_CUSTOM`'s alpha is Blender's light Power in watts, 1000 for a new light, and no panel shows it.
+- **#701** (parent `ATTR_light_level` reset), **#461**, **#576**, `none` for a custom spill without a dataref and `ELSE` conditions: as in section 4.
+
+### Tests
+
+178 test files, 640 cases, 0 failures on Blender 5.2.2 (eight skipped as before). New or rewritten test files: `negative_scale_winding`, `attribute_state_resets`, `dataref_fcurve_edge_cases`, `opposite_direction_autocorrect`.
+
+---
+
 ## Appendix: triage of all open upstream issues (October 2026)
 
 All 158 issues open on [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender/issues) on 11 October 2026, sorted by reading each issue against the upstream code.
@@ -241,7 +306,7 @@ Section 4 has more detail on the fixed and the most important open ones.
 | [#752](https://github.com/X-Plane/XPlane2Blender/issues/752) | Attribute Error: 'NoneType' object has no attribute 'xplane' | [@Rob-Neary](https://github.com/Rob-Neary) | **Fixed in 5.0** |
 | [#704](https://github.com/X-Plane/XPlane2Blender/issues/704) | Error in "xplane_ui.py" with Blender 3.2 | [@AlteredWolf](https://github.com/AlteredWolf) | **Fixed in 5.0** |
 | [#751](https://github.com/X-Plane/XPlane2Blender/issues/751) | Unable to export | [@yury620](https://github.com/yury620) | **Fixed in 5.0** |
-| [#747](https://github.com/X-Plane/XPlane2Blender/issues/747) | Mirrored (negative-scale) linked duplicates export with inverted normals | [@NuanFeng520](https://github.com/NuanFeng520) | Not reproducible on 5.2 |
+| [#747](https://github.com/X-Plane/XPlane2Blender/issues/747) | Mirrored (negative-scale) linked duplicates export with inverted normals | [@NuanFeng520](https://github.com/NuanFeng520) | **Fixed in the second pass** (section 7) |
 | [#741](https://github.com/X-Plane/XPlane2Blender/issues/741) | Symlinked texture files follow the link (obj header) when exported. | [@danklaue](https://github.com/danklaue) | **Fixed in 5.0** |
 | [#473](https://github.com/X-Plane/XPlane2Blender/issues/473) | No validation for textures having a space in the file name | [@tngreene](https://github.com/tngreene) | **Fixed in 5.0** |
 | [#577](https://github.com/X-Plane/XPlane2Blender/issues/577) | Validate TEXTURE field that texture does not have spaces in it | [@tngreene](https://github.com/tngreene) | **Fixed in 5.0** |

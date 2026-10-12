@@ -47,6 +47,17 @@ Bug fixes:
 - The X-Plane panel on the Object Data tab only appears for lights and empties, the only types with settings there. For meshes it was an empty panel that looked like a broken install (#766).
 - The upstream test runner (`tests.py`, `run.py`) works on Windows again: it keeps the system environment, and finds the add-on even when git checked out the `addons/modules` symlink as a plain file (#710).
 
+Second pass (a read of the whole add-on, see [REVIEW-5.0.md section 7](REVIEW-5.0.md#7-second-pass-code-audit)):
+- Mirrored (negative-scale) meshes no longer export inside out (#747). The earlier test for this couldn't tell.
+- `ATTR_hud_reset` and `ATTR_poly_os 0` are written after HUD glass and polygon-offset meshes; they never were.
+- Attributes set inside an `IF` block are written again, or reset, after the `ENDIF`, since X-Plane may have skipped the block.
+- Custom attribute weights order the output again (broken since 4.1).
+- Texture and decal paths are relative to the folder the OBJ is written to, also with File > Export.
+- A light aimed exactly opposite its lights.txt direction is turned around instead of writing a zero rotation axis.
+- Negative loop values are written; keyframes on fractional frames are read at the nearest frame with a warning.
+- Fixed crashes on: keyframed loop or show/hide values, draped bump level, bad decal/thermal/wiper paths, lights.txt `NULL` arguments, a Device manipulator after lowering the X-Plane version, saving after disabling the add-on, and Commands.txt files in another encoding.
+- "Add Light Property" works, the material Light Level dataref search fills in the active material, bone keyframe buttons show for bone-only animation, the Startup and Updater logs show warnings, the scene report lists the right manipulator fields, and `tests.py --continue` fails when tests fail.
+
 New features, from open upstream pull requests:
 - Mouse wheel support for Drag Rotate manipulators (#621).
 - `ATTR_manip_device` touch screen manipulator, X-Plane 12.1+ (#767). Loop values can now be negative.
