@@ -396,7 +396,7 @@ class XPlaneLight(xplane_object.XPlaneObject):
             
             for p_arg in filter(
                 lambda arg: not is_number_ish(arg)
-                and not arg.startswith(("NOOP", "sim")),
+                and not arg.startswith(("NOOP", "NULL", "sim")),
                 self.record_completed,
             ):
                 self.record_completed.replace_parameterization_argument(
@@ -429,7 +429,7 @@ class XPlaneLight(xplane_object.XPlaneObject):
             and not parsed_light.light_param_def
         ):
             self.record_completed = parsed_light.best_overload()
-            if "DREF" in self.record_completed.prototype():
+            if xplane_lights_txt_parser.ColumnName.DREF in self.record_completed.prototype():
                 self.record_completed.apply_sw_callback()
         elif self.lightType == LIGHT_AUTOMATIC and not parsed_light:
             logger.warn(unknown_light_name_warning)
@@ -599,6 +599,11 @@ class XPlaneLight(xplane_object.XPlaneObject):
                 axis_angle_theta = math.asin(
                     clamp(axis_angle_vec_b.magnitude, -1.0, 1.0)
                 )
+            if axis_angle_vec_b.magnitude < 1e-9 and dot_product_p_b < 0:
+                # Pointing exactly opposite: the cross product is zero, which
+                # used to write "ANIM_rotate 0 0 0 180 180" (no rotation at all
+                # in X-Plane). Any perpendicular axis turns it around
+                axis_angle_vec_b = dir_vec_p_norm_b.orthogonal().normalized()
             return axis_angle_vec_b, axis_angle_theta
 
         def should_autocorrect_preautomatic() -> bool:
@@ -697,7 +702,7 @@ class XPlaneLight(xplane_object.XPlaneObject):
             ), f"One of {self.lightName} parameters did not get replaced in collect or write: {self.params}"
         if self.record_completed:
             assert all(
-                isinstance(c, (float, int)) or c.startswith(("NOOP", "sim")) or c.endswith("cd")
+                isinstance(c, (float, int)) or c.startswith(("NOOP", "NULL", "sim")) or c.endswith("cd")
                 for c in self.record_completed
             ), f"record_completed is not complete {self.record_completed}"
 
