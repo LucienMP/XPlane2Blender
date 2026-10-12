@@ -203,6 +203,20 @@ class XPlaneMaterial:
             if len(self.blenderObject.data.uv_layers) > 0:
                 self.uv_name = self.blenderObject.data.uv_layers.active.name
 
+            options = self.xplaneObject.xplaneBone.xplaneFile.options
+            # Without a UV map every vertex gets texture position 0,0. Laminar found some
+            # GPUs then draw the mesh unpredictably, e.g. randomly shiny (#285)
+            if (
+                self.uv_name is None
+                and mat.xplane.draw
+                and (options.texture or options.texture_draped)
+            ):
+                logger.warn(
+                    f"{self.blenderObject.name} has no UV map, but its OBJ has a texture. Every vertex gets"
+                    " texture position 0,0, so it shows as a single colour from the texture, and some"
+                    " graphics cards draw it unpredictably. Add a UV map, e.g. with UV > Unwrap"
+                )
+
             # add custom attributes
             self.collectCustomAttributes(mat)
 

@@ -67,6 +67,11 @@ PRECISION_OBJ_FLOAT = 8
 
 # none, 1, 2, 3, 4
 MAX_LODS = 5
+
+# What happens to objects in no LOD bucket when a root has LODs (#730)
+LOD_UNASSIGNED_ALL = "all"
+LOD_UNASSIGNED_FIRST = "first"
+LOD_UNASSIGNED_SKIP = "skip"
 MAX_COCKPIT_REGIONS = 4
 
 EMPTY_USAGE_NONE = "none"

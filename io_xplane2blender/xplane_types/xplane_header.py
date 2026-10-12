@@ -985,6 +985,22 @@ class XPlaneHeader:
 
                 # slope_limit
                 if self.xplaneFile.options.slope_limit == True:
+                    # The fields now enforce this, but older .blend files can hold any value (#279)
+                    options = self.xplaneFile.options
+                    for low, high, what in (
+                        (options.slope_limit_min_pitch, options.slope_limit_max_pitch, "Pitch"),
+                        (options.slope_limit_min_roll, options.slope_limit_max_roll, "Roll"),
+                    ):
+                        if not (-90 <= low <= 90 and -90 <= high <= 90):
+                            logger.warn(
+                                f"{self.xplaneFile.filename}: Slope Limit {what} ({low}, {high}) must be"
+                                " within -90 to 90 degrees"
+                            )
+                        if low > high:
+                            logger.warn(
+                                f"{self.xplaneFile.filename}: Slope Limit Min. {what} ({low}) is above"
+                                f" Max. {what} ({high})"
+                            )
                     self.attributes["SLOPE_LIMIT"].setValue(
                         (
                             self.xplaneFile.options.slope_limit_min_pitch,

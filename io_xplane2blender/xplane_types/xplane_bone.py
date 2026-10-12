@@ -35,6 +35,8 @@ import mathutils
 from io_xplane2blender import xplane_constants, xplane_props
 from io_xplane2blender.xplane_config import getDebug
 from io_xplane2blender.xplane_helpers import floatToStr, get_action_fcurves, logger, vec_b_to_x
+from io_xplane2blender.xplane_types.xplane_attribute import XPlaneAttribute, XPlaneAttributeName
+from io_xplane2blender.xplane_types.xplane_attributes import XPlaneAttributes
 from io_xplane2blender.xplane_types.xplane_keyframe import XPlaneKeyframe
 from io_xplane2blender.xplane_types.xplane_keyframe_collection import (
     XPlaneKeyframeCollection,
@@ -78,7 +80,17 @@ class XPlaneBone:
                 self.xplaneObject.effective_buckets = tuple(
                     self.blenderObject.xplane.lod
                 )
+                self.xplaneObject.lod_assigned = True
             else:
+
+                def find_parent_assigned(parent_xplane_bone: Optional["XPlaneBone"]) -> bool:
+                    while parent_xplane_bone:
+                        if parent_xplane_bone.xplaneObject:
+                            return parent_xplane_bone.xplaneObject.lod_assigned
+                        parent_xplane_bone = parent_xplane_bone.parent
+                    return False
+
+                self.xplaneObject.lod_assigned = find_parent_assigned(self.parent)
 
                 def find_parent_buckets(
                     parent_xplane_bone: Optional["XPlaneBone"],
@@ -569,9 +581,7 @@ class XPlaneBone:
                p = None
             """
         isAnimated = self.isAnimated()
-        hasAnimationAttributes = (
-            self.xplaneObject != None and len(self.xplaneObject.animAttributes) > 0
-        )
+        hasAnimationAttributes = len(self.getAnimAttributes()) > 0
 
         if not isAnimated and not hasAnimationAttributes:
             return o
@@ -826,14 +836,46 @@ class XPlaneBone:
 
         return o
 
+    def getAnimAttributes(self) -> XPlaneAttributes:
+        """
+        Show/Hide and custom animation attributes, written inside this bone's ANIM_begin/ANIM_end
+        so they apply to everything below it: an object's, or an armature bone's. Bones offered
+        Show/Hide and custom animation attributes in the Bone tab, but they were never
+        exported (#643, #516)
+        """
+        if self.xplaneObject is not None:
+            return self.xplaneObject.animAttributes
+        if self.blenderBone is None:
+            return XPlaneAttributes()
+        if getattr(self, "_bone_anim_attributes", None) is None:
+            attributes = XPlaneAttributes()
+            bone_settings = self.blenderBone.xplane
+            for attr in bone_settings.customAnimAttributes:
+                attributes.add(XPlaneAttribute(attr.name, attr.value, attr.weight))
+            for dataref_index, dataref in enumerate(bone_settings.datarefs):
+                if dataref.anim_type in (xplane_constants.ANIM_TYPE_SHOW, xplane_constants.ANIM_TYPE_HIDE):
+                    attributes.add(
+                        XPlaneAttribute(
+                            XPlaneAttributeName("ANIM_" + dataref.anim_type, dataref_index + 1),
+                            (dataref.show_hide_v1, dataref.show_hide_v2, dataref.path),
+                        )
+                    )
+                    if dataref.loop > 0:
+                        attributes.add(
+                            XPlaneAttribute(
+                                XPlaneAttributeName("ANIM_keyframe_loop", dataref_index + 1),
+                                dataref.loop,
+                            )
+                        )
+            attributes.order()
+            self._bone_anim_attributes = attributes
+        return self._bone_anim_attributes
+
     def _writeAnimAttributes(self) -> str:
         o = ""
-
-        if self.xplaneObject == None:
-            return o
-
-        for name in self.xplaneObject.animAttributes:
-            attr = self.xplaneObject.animAttributes[name]
+        anim_attributes = self.getAnimAttributes()
+        for name in anim_attributes:
+            attr = anim_attributes[name]
             for i in range(len(attr.value)):
                 o += f"{self.getIndent()}{attr.name}\t{attr.getValueAsString(i=i)}\n"
 
@@ -842,9 +884,7 @@ class XPlaneBone:
     def writeAnimationSuffix(self) -> str:
         o = ""
         isAnimated = self.isAnimated()
-        hasAnimationAttributes = (
-            self.xplaneObject != None and len(self.xplaneObject.animAttributes) > 0
-        )
+        hasAnimationAttributes = len(self.getAnimAttributes()) > 0
 
         if not isAnimated and not hasAnimationAttributes:
             return o

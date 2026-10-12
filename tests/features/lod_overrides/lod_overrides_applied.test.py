@@ -5,7 +5,7 @@ import os
 import sys
 
 import bpy
-from io_xplane2blender import xplane_config
+from io_xplane2blender import xplane_config, xplane_constants
 from io_xplane2blender.tests import *
 
 __dirname__ = os.path.dirname(__file__)
@@ -31,6 +31,10 @@ class TestLodOverridesApplied(XPlaneTestCase):
                 )
 
     def test_AllIgnored(self)->None:
+        # Nothing here has Override LODs. Since 5.0 such objects go in every LOD by default (#730);
+        # "Not Exported" keeps the old behaviour this fixture records (lod_unassigned.test.py covers the rest)
+        bpy.data.collections["AllIgnored"].xplane.layer.lod_unassigned = xplane_constants.LOD_UNASSIGNED_SKIP
+        bpy.data.objects["AllIgnored_object"].xplane.layer.lod_unassigned = xplane_constants.LOD_UNASSIGNED_SKIP
         filename = inspect.stack()[0].function
         self._assert_root(filename)
 

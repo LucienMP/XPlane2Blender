@@ -429,6 +429,15 @@ class XPlaneTestCase(unittest.TestCase):
         with open(str(fixturePath), "r") as fixtureFile:
             fixtureOutput = fixtureFile.read()
 
+        # For comparing exporter versions or regenerating fixtures: XP2B_TEST_OUTPUT_DIR
+        # gets every compared output, named after its fixture's path
+        output_dir = os.environ.get("XP2B_TEST_OUTPUT_DIR")
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            name = os.path.relpath(os.path.abspath(str(fixturePath))).replace(os.sep, "__")
+            with open(os.path.join(output_dir, name), "w", newline="\n") as f:
+                f.write(fileOutput)
+
         return self.assertFilesEqual(
             fileOutput, fixtureOutput, filterCallback, floatTolerance
         )

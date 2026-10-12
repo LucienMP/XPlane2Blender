@@ -51,6 +51,10 @@ class XPlaneMesh:
         xplaneObjects = sorted(xplaneObjects, key=getSortKey)
 
         dg = bpy.context.evaluated_depsgraph_get()
+        # With Optimize on, identical vertices (position, normal, UV) are written once for the
+        # whole OBJ. TRIS index the shared vertex table, so objects can share them too; this used
+        # to restart per object, writing up to 3x the vertices for repeated parts (#709)
+        vertices_dct = {}
         for xplaneObject in xplaneObjects:
             if (
                 xplaneObject.type == "MESH"
@@ -117,7 +121,6 @@ class XPlaneMesh:
                     )
                     tmp_faces.append(tmp_face)
 
-                vertices_dct = {}
                 for tmp_face in tmp_faces:
                     # To reverse the winding order for X-Plane from CCW to CW,
                     # we iterate backwards through the mesh data structures

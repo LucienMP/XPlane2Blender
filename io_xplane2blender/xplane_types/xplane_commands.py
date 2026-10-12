@@ -113,6 +113,9 @@ class XPlaneCommands:
             "ATTR_draw_enable": True,
             "ATTR_no_draped": True,
             "ATTR_light_level_reset": True,
+            # X-Plane starts with no shininess, so ATTR_shiny_rat 0 is only needed to undo
+            # an earlier non-zero value (#439)
+            "ATTR_shiny_rat": 0.0,
         }
 
     def write(self, *, lod_bucket_index: Optional[int]) -> str:
@@ -158,7 +161,7 @@ class XPlaneCommands:
                 xplaneObjectWritten = True
             elif (
                 lod_bucket_index is not None
-                and xplaneObject.effective_buckets[lod_bucket_index]
+                and self.xplaneFile.lod_buckets_for(xplaneObject)[lod_bucket_index]
             ):
                 o += self._writeXPlaneObjectPrefix(xplaneObject)
                 xplaneObjectWritten = True

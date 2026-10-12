@@ -255,6 +255,9 @@ class XPlaneFile:
         # after in create_xplane_bone_hierarchy
         self.rootBone: XPlaneBone = None
 
+        # LOD buckets for objects in none, set when writing LODs (#730)
+        self._lod_fallback: Tuple[bool, bool, bool, bool] = (False,) * 4
+
         # Header assumes that its xplaneFile is completely formed
         self.header = XPlaneHeader(self, 8)
 
@@ -635,6 +638,12 @@ class XPlaneFile:
         else:
             assert False, f"Unsupported root_object type {type(exportable_root)}"
 
+    def lod_buckets_for(self, xplane_object: "XPlaneObject") -> Tuple[bool, bool, bool, bool]:
+        """The LOD buckets xplane_object is written in: its own, or the root's choice if nobody assigned it any"""
+        if xplane_object.lod_assigned:
+            return xplane_object.effective_buckets
+        return self._lod_fallback
+
     def get_xplane_objects(self) -> List["XPlaneObject"]:
         """
         Returns a list of all XPlaneObjects collected by recursing down the
@@ -707,7 +716,7 @@ class XPlaneFile:
             if bone.parent
             and (
                 bone.isAnimated()
-                or (bone.xplaneObject and bone.xplaneObject.animAttributes)
+                or len(bone.getAnimAttributes()) > 0  # includes bone Show/Hide (#643)
             )
         )
         if animated:
@@ -969,6 +978,38 @@ class XPlaneFile:
             ):
                 logger.error(
                     f"{self.filename}'s LOD buckets' Far values must be in ascending order: {[(lod) for i, lod in additive_pairs]}"
+                )
+            # -----------------------------------------------------------------
+            # Objects nobody assigned to a bucket (#730) were left out silently. Ones with
+            # Override LODs on but no bucket are left out on purpose, as before. Additive LODs overlap, so "all distances" there is the
+            # farthest bucket alone, else the object would be drawn once per bucket.
+            unassigned = [
+                obj
+                for obj in self.get_xplane_objects()
+                if isinstance(obj, (XPlanePrimitive, XPlaneLight))
+                and not obj.export_animation_only
+                and not obj.lod_assigned
+            ]
+            mode = self.options.lod_unassigned
+            if mode == xplane_constants.LOD_UNASSIGNED_ALL and len(additive_pairs) > 1:
+                fallback = tuple(i == num_lods - 1 for i in range(4))
+            elif mode == xplane_constants.LOD_UNASSIGNED_ALL:
+                fallback = tuple(i < num_lods for i in range(4))
+            elif mode == xplane_constants.LOD_UNASSIGNED_FIRST:
+                fallback = (True, False, False, False)
+            else:
+                fallback = (False,) * 4
+            self._lod_fallback = fallback
+            if unassigned:
+                names = ", ".join(sorted(obj.blenderObject.name for obj in unassigned))
+                where = {
+                    xplane_constants.LOD_UNASSIGNED_ALL: "exported at all distances",
+                    xplane_constants.LOD_UNASSIGNED_FIRST: "exported in the first LOD only",
+                    xplane_constants.LOD_UNASSIGNED_SKIP: "not exported",
+                }[mode]
+                logger.warn(
+                    f"{self.filename}: {len(unassigned)} object(s) aren't in any LOD, so they're {where}"
+                    f" (root's 'Objects in No LOD' setting). Assign LODs with Object > Override LODs: {names}"
                 )
             # -----------------------------------------------------------------
             # LOD spec #1, this is written before the first ever

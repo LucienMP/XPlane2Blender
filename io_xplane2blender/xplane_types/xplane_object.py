@@ -43,6 +43,9 @@ class XPlaneObject:
         # This represents all specializations of lods, on this subject,
         # including it's parents. Set in XPlaneBone's constructor
         self.effective_buckets: Tuple[...] = (False,) * 4
+        # True when it or a parent has Override LODs on, even with no bucket ticked: upstream's
+        # way to leave an object out. Objects nobody assigned get the root's choice (#730)
+        self.lod_assigned = False
         for i, dataref in self.blenderObject.xplane.datarefs.items():
             self.datarefs[dataref.path] = dataref
 

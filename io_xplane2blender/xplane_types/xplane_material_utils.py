@@ -266,6 +266,11 @@ def validateAircraft(mat: XPlaneMaterial) -> MaterialValidationMsgs:
     if mat.options.cockpit_feature == COCKPIT_FEATURE_PANEL:
         errors.append("Aircraft .obj Material cannot be 'Part Of Panel'.")
 
+    # OBJ8 spec: "Only triangles in the cockpit object can be in the camera plane". Scenery
+    # types already refuse it; for aircraft it was allowed silently (#515)
+    if mat.options.solid_camera:
+        warnings.append("Has Camera Collision, which only works in Cockpit objects. X-Plane ignores it here.")
+
     if mat.options.draped:
         errors.append("Must not be draped.")
 

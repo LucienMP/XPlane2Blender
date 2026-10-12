@@ -26,6 +26,17 @@ class DATA_PT_xplane(bpy.types.Panel):
     bl_region_type = "WINDOW"
     bl_context = "data"
 
+    @classmethod
+    def poll(cls, context):
+        # Only lights and (for X-Plane 11.30+) empties have X-Plane data settings. Meshes have theirs
+        # on the Object and Material tabs, and an empty panel here looked like a failed install (#766)
+        obj = context.object
+        if not obj:
+            return False
+        return obj.type == "LIGHT" or (
+            obj.type == "EMPTY" and int(context.scene.xplane.version) >= 1130
+        )
+
     def draw(self, context):
         obj = context.object
         version = int(bpy.context.scene.xplane.version)
@@ -893,6 +904,9 @@ def layer_layout(
             if lod.expanded:
                 lod_box.prop(lod, "near")
                 lod_box.prop(lod, "far")
+
+    if num_lods:
+        lods_box.prop(layer_props, "lod_unassigned")
 
     if canHaveDraped:
         lods_box.prop(layer_props, "lod_draped")

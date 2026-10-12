@@ -1240,6 +1240,24 @@ class XPlaneLayer(bpy.types.PropertyGroup):
             self.cockpit_region.add()
         return None
 
+    # Slope Limit (#279): the OBJ8 spec allows -90 to 90 degrees (the fields' limits), and a
+    # minimum can't be above its maximum, so changing one end moves the other when needed
+    def _update_slope_min_pitch(self, context):
+        if self.slope_limit_min_pitch > self.slope_limit_max_pitch:
+            self.slope_limit_max_pitch = self.slope_limit_min_pitch
+
+    def _update_slope_max_pitch(self, context):
+        if self.slope_limit_max_pitch < self.slope_limit_min_pitch:
+            self.slope_limit_min_pitch = self.slope_limit_max_pitch
+
+    def _update_slope_min_roll(self, context):
+        if self.slope_limit_min_roll > self.slope_limit_max_roll:
+            self.slope_limit_max_roll = self.slope_limit_min_roll
+
+    def _update_slope_max_roll(self, context):
+        if self.slope_limit_max_roll < self.slope_limit_min_roll:
+            self.slope_limit_min_roll = self.slope_limit_max_roll
+
     def update_lods(self, context):
         # Avoids the need for operators to increase and decrease the size of self.lods
         #MAX_LODS also counts "None", so we have to subtract by 1
@@ -1943,6 +1961,17 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         description = "Level of detail",
     )
 
+    lod_unassigned: bpy.props.EnumProperty(
+        name = "Objects in No LOD",
+        description = "Where objects go when neither they nor a parent use Object > Override LODs. Objects with Override LODs on but no LOD ticked are always left out",
+        items = [
+            (LOD_UNASSIGNED_ALL, "All Distances", "Drawn at every distance: in every LOD, or only the farthest one when the LODs are additive (all start at 0)"),
+            (LOD_UNASSIGNED_FIRST, "First LOD", "Only in the first (closest) LOD"),
+            (LOD_UNASSIGNED_SKIP, "Not Exported", "Left out of the OBJ, as before XPlane2Blender 5.0"),
+        ],
+        default = LOD_UNASSIGNED_ALL
+    )
+
     # v1000
     lod_draped: bpy.props.FloatProperty(
         name = "Max. Draped LOD",
@@ -1970,7 +1999,10 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         name = "Min. Pitch",
         description = "Represents the ground sloping down at the front of the object in degrees",
         default = 0.0,
-        precision = 2
+        precision = 2,
+        min = -90.0,
+        max = 90.0,
+        update = _update_slope_min_pitch
     )
 
     # v1000
@@ -1978,7 +2010,10 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         name = "Max. Pitch",
         description = "Represents the ground sloping down at the front of the object in degrees",
         default = 0.0,
-        precision = 2
+        precision = 2,
+        min = -90.0,
+        max = 90.0,
+        update = _update_slope_max_pitch
     )
 
     # v1000
@@ -1986,7 +2021,10 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         name = "Min. Roll",
         description = "Represents the ground sloping down to the left of the object in degrees",
         default = 0.0,
-        precision = 2
+        precision = 2,
+        min = -90.0,
+        max = 90.0,
+        update = _update_slope_min_roll
     )
 
     # v1000
@@ -1994,7 +2032,10 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         name = "Max. Roll",
         description = "Represents the ground sloping down to the left of the object in degrees",
         default = 0.0,
-        precision = 2
+        precision = 2,
+        min = -90.0,
+        max = 90.0,
+        update = _update_slope_max_roll
     )
 
     # v1000

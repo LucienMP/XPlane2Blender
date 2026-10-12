@@ -10,6 +10,33 @@ import os
 import subprocess
 import sys
 
+
+def blender_user_scripts() -> str:
+    """
+    The BLENDER_USER_SCRIPTS folder that lets Blender load io_xplane2blender from this repo:
+    the repo itself, through its addons/modules symlink. On Windows clones without symlink
+    support (git's core.symlinks=false), that symlink is a small text file, so a folder in the
+    temp directory gets an addons/modules junction to the repo instead (#710)
+    """
+    here = os.path.dirname(os.path.realpath(__file__))
+    if os.path.isdir(os.path.join(here, "addons", "modules")):
+        return here
+    import hashlib
+    import tempfile
+
+    scripts = os.path.join(
+        tempfile.gettempdir(),
+        "xplane2blender_scripts_" + hashlib.sha1(here.encode()).hexdigest()[:8],
+    )
+    link = os.path.join(scripts, "addons", "modules")
+    if not os.path.isdir(link):
+        os.makedirs(os.path.dirname(link), exist_ok=True)
+        if os.name == "nt":
+            subprocess.run(["cmd", "/c", "mklink", "/J", link, here], check=True, capture_output=True)
+        else:
+            os.symlink(here, link)
+    return scripts
+
 def _make_argparse():
     parser = argparse.ArgumentParser(description="Runs the XPlane2Blender test suite")
     blender_options = parser.add_argument_group("Blender Options")
@@ -64,7 +91,10 @@ def main(argv=None) -> int:
     # Environment variables - in order for --addons to work, we need to have OUR folder
     # exist, and we need to have "addons/modules" simlink BACK to us to create the illusion
     # of the directory structure Blender expects.
-    enviro={"BLENDER_USER_SCRIPTS": os.path.dirname(os.path.realpath(__file__))}
+    # Keep the rest of the environment: without it (e.g. SYSTEMROOT), Blender's Python
+    # can't start on Windows (#710)
+    enviro = dict(os.environ)
+    enviro["BLENDER_USER_SCRIPTS"] = blender_user_scripts()
 
     # Run Blender, normalize output line endings because Windows is dumb
     out = subprocess.run(
