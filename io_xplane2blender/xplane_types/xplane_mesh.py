@@ -81,11 +81,27 @@ class XPlaneMesh:
                 xplaneObject.bakeMatrix = (
                     xplaneObject.xplaneBone.getBakeMatrixForAttached()
                 )
+                # A mirroring bake matrix (negative determinant, e.g. scale -1) turns the
+                # loops clockwise, and Blender recomputes normals from them, inwards.
+                # Custom normals come out with mixed signs. So for a mirrored mesh the
+                # corner normals are taken in local space, before the transform, and
+                # rotated with the normal matrix, as the viewport does (#747)
+                mirrored = xplaneObject.bakeMatrix.is_negative
+                if mirrored:
+                    mesh.calc_loop_triangles()
+                    normal_matrix = xplaneObject.bakeMatrix.to_3x3().inverted_safe().transposed()
+                    local_normals = {
+                        tri.index: tuple(
+                            (normal_matrix @ mathutils.Vector(n)).normalized()
+                            for n in tri.split_normals
+                        )
+                        for tri in mesh.loop_triangles
+                    }
                 mesh.transform(xplaneObject.bakeMatrix)
 
                 if hasattr(mesh, "calc_normals_split"):
                     mesh.calc_normals_split()
-                
+
                 mesh.calc_loop_triangles()
                 loop_triangles = mesh.loop_triangles
                 try:
@@ -112,7 +128,9 @@ class XPlaneMesh:
                         # tri.vertices is indices in that vertex table
                         indices=tri.vertices,
                         normal=tri.normal,
-                        split_normals=tri.split_normals,
+                        split_normals=local_normals[tri.index]
+                        if mirrored
+                        else tri.split_normals,
                         uvs=tuple(
                             uv_layer.data[loop_index].uv for loop_index in tri.loops
                         )
@@ -121,17 +139,17 @@ class XPlaneMesh:
                     )
                     tmp_faces.append(tmp_face)
 
+                # To reverse the winding order for X-Plane from CCW to CW, we iterate
+                # backwards through the mesh data structures. A mirrored mesh's loops
+                # are already clockwise (#747)
+                corner_order = (0, 1, 2) if mirrored else (2, 1, 0)
                 for tmp_face in tmp_faces:
-                    # To reverse the winding order for X-Plane from CCW to CW,
-                    # we iterate backwards through the mesh data structures
-                    for i in reversed(range(0, 3)):
+                    for i in corner_order:
                         index = tmp_face.indices[i]
                         vertex = xplane_helpers.vec_b_to_x(mesh.vertices[index].co)
-                        normal = xplane_helpers.vec_b_to_x(
-                            tmp_face.split_normals[i]
-                            if tmp_face.original_face.use_smooth
-                            else tmp_face.normal
-                        )
+                        # Corner (split) normals already equal the face normal on flat
+                        # faces, and carry custom normals, which tri.normal would drop
+                        normal = xplane_helpers.vec_b_to_x(tmp_face.split_normals[i])
                         uv = tmp_face.uvs[i]
                         vt_entry = tuple(vertex[:] + normal[:] + uv[:])
 
