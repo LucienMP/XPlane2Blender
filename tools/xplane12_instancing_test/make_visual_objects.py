@@ -185,3 +185,7 @@ write_facing("v_facing_plain")
 write_facing("v_facing_nml_global1", [NML, "GLOBAL_specular\t1.0"])
 spill("v_spillB_notoken_5000cd", "5000cd", None)
 spill("v_spillB_none_500", "500", "none")
+
+# --- Undocumented conditional variables found in the X-Plane 12.4.4 executable ---
+for var in ("VERSION11", "VERSION12", "VERSION13", "VERSION99", "SEASONAL", "NOT_A_REAL_VARIABLE"):
+    write(f"v_if_{var}", ["red", "blue"], [f"IF {var}", "{TRIS0}", "ELSE", "{TRIS1}", "ENDIF"])

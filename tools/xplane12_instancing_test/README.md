@@ -21,6 +21,12 @@ X-Plane version might have changed the rules.
   the `x_xp2b_*` objects are XPlane2Blender's own exports, made with the scripts in `blender/` (or, for the Drag
   Rotate one, `tests/object/drag_rotate_mouse_wheel.test.py`). The plugin waits 20 s before the screenshot, for
   auto-exposure to settle.
+- **Season scenes** (`season_*`, `e2e_*`) replace the pack's tile and `library.txt`, and can set the date, start
+  position, aircraft, a mid-flight date change (`redate`: two more screenshots, 30 s and 90 s later) and art controls
+  (`datarefs`: set once the scenery has loaded, then the scenery is reloaded; X-Plane resets them at its next start).
+  `make_season_test.py` writes four coloured boxes published by season (spring green, summer red, autumn blue,
+  winter white) and DSFs that place them. `blender/export_season_library.py` makes the `e2e_*` packs: XPlane2Blender
+  exports the boxes into `e2e_<variant>/Custom Scenery/XP2B_instancing_test/` and writes their `library.txt`.
 
 **The measure:** `sim/private/stats/instance/num_cluster_objs`, the number of objects X-Plane has put into instancing
 clusters. With 10,000 copies an instanced variant raises it by about 10,000. A non-instanced one doesn't change it.
@@ -40,9 +46,12 @@ plugin\build.bat C:\path\to\XPSDK430\SDK
 python make_objects.py objects
 python make_visual_objects.py objects
 python gen_dsf.py C:\path\to\xptools\tools\DSFTool.exe
+python make_season_test.py C:\path\to\xptools\tools\DSFTool.exe
+blender -b --factory-startup --addons io_xplane2blender --python blender\export_season_library.py -- "e2e_full\Custom Scenery\XP2B_instancing_test"
 python runner.py install        # backs up scenery_packs.ini, preferences and Log.txt first
 python runner.py run none control anim light_custom named_sw_VASI ...
 python runner.py run scene:spot_night2 scene:conditionals_day ...
+python runner.py run scene:season_kshn_jan scene:e2e_full_jan ...
 python runner.py cleanup        # removes the plugin and scenery, restores the backups
 ```
 
@@ -100,3 +109,19 @@ was repeated with the objects in swapped positions.
 | [#284](https://github.com/X-Plane/XPlane2Blender/issues/284): conditionals | `IF`/`IF NOT`/`ELSE`/`ELSE IF`/`ENDIF` with `VERSION10`, `GLOBAL_LIGHTING`, `GLOBAL_SHADOWS`, `SCENERY_SHADOWS` | **All supported.** `ELSE` and `ELSE IF` work. `VERSION10` and `GLOBAL_LIGHTING` were true (X-Plane 12 has no non-HDR mode). The two shadow variables were true with the shadow settings used; their false case wasn't tested. |
 | [#461](https://github.com/X-Plane/XPlane2Blender/issues/461): `GLOBAL_specular` with a normal map | Panels angled to reflect the sky: no normal map; normal map with `GLOBAL_specular` 0, 1.0 | **Small effect.** Adding a normal map made the surface clearly more reflective (red channel 11 → 42); `GLOBAL_specular` 0 → 1.0 changed it a little (42 → 47.5). |
 | [#621](https://github.com/X-Plane/XPlane2Blender/issues/621): `ATTR_manip_wheel` after `ATTR_manip_drag_rotate` | A hand-written OBJ and XPlane2Blender's export | **Loads without errors.** The wheel itself needs someone to scroll in the cockpit; that wasn't tested. |
+
+## Season and library.txt results, 12 October 2026
+
+The first four Shelton runs used X-Plane 12.4.4. The rest ran on 12.4.3, after the X-Plane installer replaced the
+beta. All at 13:00 local time.
+
+| Scene | Where, when | Result |
+|---|---|---|
+| `season_kshn_jan` / `_apr` / `_jun` / `_aug` / `_oct` | Shelton, WA (47°N): 15 Jan, 15 Apr, 21 Jun, 15 Aug, 15 Oct | Winter, spring, **spring**, summer, autumn. The season isn't the calendar season: 21 June was still spring. |
+| `season_nffn_jan` / `_jun` | Nadi, Fiji (17.8°S): 15 Jan, 21 Jun | Spring both times: no seasons in the tropics. |
+| `season_kshn_live` | Shelton, 21 Jun, then the date set to 15 Jan | Spring before, and still spring 30 s and 90 s after the change: the season is picked when the scenery loads. |
+| `season_ocean45n_*` / `season_ocean45s_*` | Open ocean at 45°N and 45°S, seaplane | **No result:** X-Plane loads the DSF but draws no objects on open ocean. No southern temperate base scenery was installed (a Vanuatu attempt stopped at X-Plane's "Missing Scenery" dialog), so whether the south gets reversed seasons is untested. |
+| `e2e_full_jan` / `_jun` | XPlane2Blender's own seasonal export and `library.txt` | The winter OBJ in January, the spring/summer OBJ in June. No log errors. |
+| `e2e_no_winter_jan` | The same, with winter left out of `library.txt` (the export warns) | Nothing is drawn in January. |
+| `e2e_full_jun`, `e2e_plate_if_jun` | A plate under `IF NOT SCENERY_SHADOWS`, then under `IF SCENERY_SHADOWS`, with shadows on | Hidden, then shown: XPlane2Blender's `SCENERY_SHADOWS` conditions load and work. |
+| `e2e_full_jun_no_scenery_shadows` | Art control `shadow/scenery_shadows` set to 0, scenery reloaded | Shadows went off, but the `IF NOT` plate stayed hidden. Inconclusive: the condition may follow the graphics setting rather than this control, or the reload may have kept the cached OBJ. |

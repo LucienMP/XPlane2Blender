@@ -35,7 +35,67 @@ New features, from open upstream pull requests:
 - Scene report: a CSV of every dataref and manipulator in the scene (#764).
 - Material compatibility checks no longer look at objects outside the root (#761).
 
+New features, checked in X-Plane 12.4.4:
+- Publish OBJs in the scenery pack's `library.txt`, including seasonal variants (`EXPORT_SEASON`). See [Publishing OBJs in library.txt](#publishing-objs-in-librarytxt).
+- The "Scenery Shadows" condition (`SCENERY_SHADOWS`), as used by Laminar's own scenery. See [Conditions](#conditions-if--endif).
+
 Issue and pull request numbers refer to [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender). For the authors of each change, full links, what was left out and why, and a review of the unofficial forum port, see [REVIEW-5.0.md](REVIEW-5.0.md).
+
+### Conditions (IF / ENDIF)
+An object's Conditions (Object properties > Conditions) wrap its geometry in `IF <variable>` / `ENDIF`, or `IF NOT <variable>` / `ENDIF` when "Must Be On" is off. X-Plane decides each condition once, when it loads the OBJ, from its graphics settings: conditions can't use datarefs, and X-Plane reloads the OBJ when those settings change.
+
+These are all the variables X-Plane 12.4.4 knows. They're built in, so you can't define your own:
+
+| Variable | Shown as | True when | In X-Plane 12 |
+|---|---|---|---|
+| `GLOBAL_LIGHTING` | HDR | HDR rendering is on | Always true: X-Plane 12 has no non-HDR mode |
+| `GLOBAL_SHADOWS` | Global Shadows | Any shadows are enabled | Follows the shadow settings |
+| `SCENERY_SHADOWS` | Scenery Shadows | Scenery casts shadows | Follows the shadow settings |
+| `VERSION10` | Version 10.x | X-Plane 10 or later | Always true |
+| `VERSION12` | not offered | The running X-Plane is version 12 | Always true. Undocumented, found in the X-Plane executable |
+
+- **Any other name is an error.** X-Plane logs "unknown variable for IF statement" for names such as `VERSION11`, `VERSION13` or `SEASONAL`. There's no season variable: seasonal objects go through `library.txt` instead, see below.
+- **The one real-world use is a fake shadow.** In 24,714 OBJs (X-Plane 12 plus add-on scenery), the only condition that does anything is in Laminar's static CRJ-200 (and a copy of it): `IF NOT SCENERY_SHADOWS`. It draws a dark patch under the aircraft only when scenery shadows are off. To do the same, add a "Scenery Shadows" condition with "Must Be On" off. In X-Plane 12.4.3, XPlane2Blender's export of this hid the patch with shadows on, and the "Must Be On" version showed it.
+- **`ELSE`, `ELSE IF` and `ELSE IF NOT` aren't supported yet.** X-Plane 12 accepts them, but XPlane2Blender only writes `IF` / `IF NOT` ... `ENDIF`. They could be added in future, for example as an "Else" object linked to its condition. Nothing in a default X-Plane 12 install uses them. Until then, use two objects with opposite conditions.
+
+### Publishing OBJs in library.txt
+Other scenery, including X-Plane's own, refers to objects by library path, such as `lib/my_library/trees/oak.obj`. A scenery pack's `library.txt` maps those paths to its OBJ files. XPlane2Blender can write those entries for you:
+
+1. In a root's settings (Scenery Properties > Library), tick **Add to library.txt** and enter the **Library Path**.
+2. Choose how the OBJ is published:
+   - **Export:** replaces what lower priority packs publish under the path. Optionally set a **Ratio**, to weight how often X-Plane picks this OBJ among several.
+   - **Extend:** adds to what lower priority packs publish.
+   - **Exclude:** publishes the path, and stops lower priority packs from publishing it.
+   - **Backup:** only used when no other pack publishes the path.
+3. For seasonal variants (X-Plane 12), tick **By Season** and the seasons this OBJ is for. Publish one OBJ per season, or one per group of seasons, under the same Library Path, for example a green tree for spring and summer, a bare one for autumn, and a snowy one for winter.
+4. Export. `library.txt` goes in the scenery pack's root folder when you export into `Custom Scenery/<pack>/`. Otherwise it goes in the export folder.
+
+XPlane2Blender only changes its own block of `library.txt`, marked with the .blend file's name, so entries you wrote by hand and other .blend files' blocks are kept:
+
+```
+A
+1200
+LIBRARY
+
+# BEGIN XPlane2Blender: trees.blend
+EXPORT_SEASON	fal	lib/my_library/trees/oak.obj	objects/oak_bare.obj
+EXPORT_SEASON	spr,sum	lib/my_library/trees/oak.obj	objects/oak_green.obj
+EXPORT_SEASON	win	lib/my_library/trees/oak.obj	objects/oak_snow.obj
+# END XPlane2Blender: trees.blend
+```
+
+Exporting an OBJ only replaces its own lines in the block, and turning off "Add to library.txt" removes them.
+
+X-Plane's rules for seasons, which the export checks:
+- **One or the other.** A library path is published either by season or not by season, never both. Mixing them is an export error.
+- **Cover the whole year.** X-Plane needs all four seasons covered under a path, or it shows nothing in the missing ones (checked in X-Plane 12.4.3). A missing season is a warning.
+- **No seasonal Ratio or Backup.** X-Plane has no seasonal version of `EXPORT_RATIO` or `EXPORT_BACKUP`.
+
+How X-Plane 12 picks the season, as tested in X-Plane 12.4.3 and 12.4.4 ([tool and results](tools/xplane12_instancing_test)):
+- **It doesn't simply follow the calendar.** At 47°N (Shelton, WA), 15 January gave winter, 15 April spring, 21 June still spring, 15 August summer, and 15 October autumn.
+- **The tropics stay in one season.** At 17.8°S (Nadi, Fiji), both January and June gave spring, so give tropical scenery a spring OBJ that looks right all year.
+- **It's chosen when the scenery loads.** Changing the date mid-flight from June to January didn't change the OBJ within 90 seconds.
+- **Not tested:** whether the seasons are reversed at southern temperate latitudes. That needs southern base scenery that wasn't installed.
 
 ## General Requirements
 - Blender 5.0 or later. Tested with Blender 5.2 LTS.

@@ -24,7 +24,7 @@ PLUGIN = os.path.join(XP, "Resources", "plugins", PACK_NAME)
 INI = os.path.join(XP, "Custom Scenery", "scenery_packs.ini")
 BACKUP = os.path.join(HERE, "backup")
 RESULTS = os.path.join(HERE, "results")
-TIMEOUT = 420
+TIMEOUT = 600
 
 FLIGHT = {
     "aircraft": {"path": "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf"},
@@ -72,17 +72,48 @@ EMPTY_OBJ = "I\n800\nOBJ\n\nPOINT_COUNTS\t0\t0\t0\t0\n"
 def run(name):
     """
     One X-Plane run. name is a counting variant ("none" or an OBJ in objects/, placed 10,000 times)
-    or "scene:<name>" from scenes.py: up to 6 OBJs side by side 30 m ahead, for screenshots.
+    or "scene:<name>" from scenes.py: up to 6 OBJs side by side 30 m ahead, for screenshots,
+    or a whole tile, library.txt and date for the season tests.
     """
     import copy
     import importlib
     flight = copy.deepcopy(FLIGHT)
-    dsf = os.path.join(PACK, "Earth nav data", "+40-130", "+47-124.dsf")
+    # Start each run with only the tiles and library it needs
+    nav = os.path.join(PACK, "Earth nav data")
+    shutil.rmtree(nav, ignore_errors=True)
+    os.makedirs(os.path.join(nav, "+40-130"))
+    library = os.path.join(PACK, "library.txt")
+    if os.path.exists(library):
+        os.remove(library)
+    dsf = os.path.join(nav, "+40-130", "+47-124.dsf")
     if name.startswith("scene:"):
         scenes = importlib.import_module("scenes").SCENES
         scene = scenes[name[len("scene:"):]]
         flight["local_time"]["time_in_24_hours"] = scene.get("time", 13.0)
-        shutil.copy(os.path.join(HERE, "dsf_visual", "+47-124.dsf"), dsf)
+        flight["local_time"]["day_of_year"] = scene.get("day", 172)
+        if "aircraft" in scene:
+            flight["aircraft"] = {"path": scene["aircraft"]}
+        if "start" in scene:
+            flight["lle_ground_start"] = {k: scene["start"][k] for k in ("latitude", "longitude", "heading_true")}
+        if "datarefs" in scene:  # the plugin sets these at X-Plane's start, before the flight loads
+            with open(os.path.join(PLUGIN, "SETDREFS"), "w") as f:
+                f.writelines(f"{k} {v}\n" for k, v in scene["datarefs"].items())
+        if "redate" in scene:  # the plugin changes the date after the first screenshot
+            open(os.path.join(PLUGIN, "REDATE"), "w").write(str(scene["redate"]))
+        if "library" in scene:
+            shutil.copy(os.path.join(HERE, scene["library"]), library)
+        if "pack" in scene:  # files exported straight into a copy of the pack, e.g. by XPlane2Blender
+            shutil.copytree(os.path.join(HERE, scene["pack"]), PACK, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns("*.blend", "*.blend1"))
+        for obj in scene.get("objects", ()):
+            shutil.copy(os.path.join(HERE, "objects", f"{obj}.obj"), os.path.join(PACK, "objects", f"{obj}.obj"))
+        if "tile" in scene:  # a whole tile from a DSF folder, e.g. ("dsf_season_nffn", "-20+170/-18+177.dsf")
+            src_dir, tile = scene["tile"]
+            os.makedirs(os.path.join(nav, os.path.dirname(tile)), exist_ok=True)
+            shutil.copy(os.path.join(HERE, src_dir, os.path.basename(tile)), os.path.join(nav, tile))
+            scene = dict(scene, slots=[])
+        else:
+            shutil.copy(os.path.join(HERE, "dsf_visual", "+47-124.dsf"), dsf)
         slots = list(scene["slots"]) + [None] * (SLOTS - len(scene["slots"]))
         for i, variant in enumerate(slots, start=1):
             target = os.path.join(PACK, "objects", f"slot{i}.obj")

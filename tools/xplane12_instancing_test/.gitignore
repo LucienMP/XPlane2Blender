@@ -9,3 +9,6 @@ plugin/*.obj
 plugin/*.lib
 plugin/*.exp
 dsf_visual/
+dsf_season_*/
+e2e_*/
+season_library.txt

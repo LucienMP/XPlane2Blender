@@ -21,6 +21,7 @@ static float g_state_t;    /* time when the current state started */
 static float g_quiet_since = -1;
 static XPLMDataRef g_loading;
 static int g_samples;
+static int set_datarefs(void);
 
 static void logf_(const char *fmt, const char *a)
 {
@@ -82,7 +83,7 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
     float in_state = g_t - g_state_t;
 #define NEXT(s) do { g_state = (s); g_state_t = g_t; } while (0)
 
-    if (g_t > 300.0f && g_state > 0 && g_state < 90) {
+    if (g_t > 420.0f && g_state > 0 && g_state < 90) {
         logf_("TIMEOUT, quitting", NULL);
         NEXT(90);
     }
@@ -109,6 +110,12 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
         else if (g_quiet_since < 0) g_quiet_since = g_t;
         if (in_state > 40.0f && g_quiet_since >= 0 && g_t - g_quiet_since > 10.0f) {
             logf_("scenery loaded", NULL);
+            if (set_datarefs()) {
+                run_command("sim/operation/reload_scenery");
+                g_quiet_since = -1;
+                NEXT(1);
+                break;
+            }
             run_command("sim/view/forward_with_nothing");
             NEXT(2);
         }
@@ -128,7 +135,41 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
             NEXT(4);
         }
         break;
-    case 4:
+    case 4: /* optionally change the date mid-flight (REDATE holds the new day of the year) */
+        if (in_state > 4.0f) {
+            char p[1100];
+            path_in_dir(p, sizeof p, "REDATE");
+            FILE *f = fopen(p, "rb");
+            int day = -1;
+            if (f) {
+                if (fscanf(f, "%d", &day) != 1) day = -1;
+                fclose(f);
+                remove(p);
+            }
+            if (day >= 0) {
+                XPLMSetDatai(XPLMFindDataRef("sim/time/local_date_days"), day);
+                char msg[32];
+                snprintf(msg, sizeof msg, "%d", day);
+                logf_("date changed to day %s", msg);
+                NEXT(5);
+            } else {
+                NEXT(90);
+            }
+        }
+        break;
+    case 5: /* screenshots 30 s and 90 s after the date change */
+        if (in_state > 30.0f) {
+            run_command("sim/operation/screenshot");
+            NEXT(6);
+        }
+        break;
+    case 6:
+        if (in_state > 60.0f) {
+            run_command("sim/operation/screenshot");
+            NEXT(7);
+        }
+        break;
+    case 7:
         if (in_state > 4.0f) NEXT(90);
         break;
     case 90:
@@ -170,6 +211,35 @@ PLUGIN_API void XPluginStop(void)
 {
     logf_("stopped", NULL);
     if (g_log) fclose(g_log);
+}
+
+/*
+ * SETDREFS holds "dataref value" lines, set once the scenery has loaded, which is then reloaded,
+ * e.g. an art control such as sim/private/controls/shadow/scenery_shadows. Art controls only exist
+ * once the sim is running, and X-Plane resets them at its next start, so the user's settings
+ * aren't changed. Returns how many were set.
+ */
+static int set_datarefs(void)
+{
+    int n = 0;
+    char p[1100], name[512];
+    double v;
+    path_in_dir(p, sizeof p, "SETDREFS");
+    FILE *f = fopen(p, "rb");
+    if (!f) return 0;
+    while (fscanf(f, "%511s %lf", name, &v) == 2) {
+        XPLMDataRef r = XPLMFindDataRef(name);
+        if (!r) { logf_("SETDREFS: no dataref %s", name); continue; }
+        XPLMDataTypeID t = XPLMGetDataRefTypes(r);
+        if (t & xplmType_Float) XPLMSetDataf(r, (float)v);
+        else if (t & xplmType_Double) XPLMSetDatad(r, v);
+        else if (t & xplmType_Int) XPLMSetDatai(r, (int)v);
+        logf_("SETDREFS: set %s", name);
+        n++;
+    }
+    fclose(f);
+    remove(p);
+    return n;
 }
 
 PLUGIN_API int XPluginEnable(void)
