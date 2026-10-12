@@ -255,6 +255,9 @@ class XPlaneFile:
         # after in create_xplane_bone_hierarchy
         self.rootBone: XPlaneBone = None
 
+        # Datablocks already warned about for an Action with no slot assigned
+        self.warned_missing_slot: Set[str] = set()
+
         # LOD buckets for objects in none, set when writing LODs (#730)
         self._lod_fallback: Tuple[bool, bool, bool, bool] = (False,) * 4
 

@@ -90,6 +90,19 @@ def get_action_fcurves(anim_data: Optional[bpy.types.AnimData]):
     return []
 
 
+def action_missing_slot(anim_data: Optional[bpy.types.AnimData]) -> bool:
+    """
+    True when anim_data has a slotted Action with keyframes, but none of its slots is
+    assigned, so nothing in it animates anim_data's ID (and nothing is exported)
+    """
+    if anim_data is None or anim_data.action is None:
+        return False
+    action = anim_data.action
+    if _is_legacy_action(action) or anim_data.action_slot is not None:
+        return False
+    return bool(iter_all_action_fcurves(action))
+
+
 def iter_all_action_fcurves(action: bpy.types.Action) -> List[bpy.types.FCurve]:
     """
     Returns every FCurve in an action, across all slots.

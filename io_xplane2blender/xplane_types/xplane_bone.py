@@ -34,7 +34,13 @@ import mathutils
 
 from io_xplane2blender import xplane_constants, xplane_props
 from io_xplane2blender.xplane_config import getDebug
-from io_xplane2blender.xplane_helpers import floatToStr, get_action_fcurves, logger, vec_b_to_x
+from io_xplane2blender.xplane_helpers import (
+    action_missing_slot,
+    floatToStr,
+    get_action_fcurves,
+    logger,
+    vec_b_to_x,
+)
 from io_xplane2blender.xplane_types.xplane_attribute import XPlaneAttribute, XPlaneAttributeName
 from io_xplane2blender.xplane_types.xplane_attributes import XPlaneAttributes
 from io_xplane2blender.xplane_types.xplane_keyframe import XPlaneKeyframe
@@ -183,6 +189,24 @@ class XPlaneBone:
 
         bone = self.blenderBone
         blenderObject = self.blenderObject
+
+        # An Action assigned with none of its slots chosen animates nothing, silently.
+        # Warn once per datablock: an armature's bones all share its data's Action
+        owner = blenderObject.data if bone else blenderObject
+        anim_data = getattr(owner, "animation_data", None)
+        warned = self.xplaneFile.warned_missing_slot
+        if action_missing_slot(anim_data) and owner.name_full not in warned:
+            warned.add(owner.name_full)
+            where = (
+                f"The armature data of '{blenderObject.name}' (its bones' animation)"
+                if bone
+                else f"'{blenderObject.name}'"
+            )
+            panel = "Object Data" if bone else "Object"
+            logger.warn(
+                f"{where} has the Action '{anim_data.action.name}', but none of its slots is assigned,"
+                f" so its animation isn't exported. Choose a slot in the {panel} properties' Animation panel"
+            )
 
         # check for animation
         # if bone:
