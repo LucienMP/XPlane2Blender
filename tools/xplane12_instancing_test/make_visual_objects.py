@@ -189,3 +189,26 @@ spill("v_spillB_none_500", "500", "none")
 # --- Undocumented conditional variables found in the X-Plane 12.4.4 executable ---
 for var in ("VERSION11", "VERSION12", "VERSION13", "VERSION99", "SEASONAL", "NOT_A_REAL_VARIABLE"):
     write(f"v_if_{var}", ["red", "blue"], [f"IF {var}", "{TRIS0}", "ELSE", "{TRIS1}", "ENDIF"])
+
+# --- #439: is ATTR_shiny_rat 0 X-Plane 12's default? Glint panels with no line vs an explicit 0 ---
+write_panel("v_glint_nml_shiny0", [NML], ["ATTR_shiny_rat\t0"])
+write_panel("v_glint_nml_shiny05", [NML], ["ATTR_shiny_rat\t0.5"])
+write_panel("v_glint_nml_shiny1", [NML], ["ATTR_shiny_rat\t1"])
+
+# --- #730: do additive LODs draw every LOD in range? A half-transparent box in both LODs vs one ---
+half = Image.new("RGBA", (16, 16), (230, 30, 30, 128))
+half.save(os.path.join(out, "vtex_half.png"))
+
+
+def write_additive(name, in_first_lod):
+    vt, idx = box("red")
+    lines = ["I", "800", "OBJ", "", "TEXTURE\tvtex_half.png", "", f"POINT_COUNTS\t{len(vt)}\t0\t0\t{len(idx)}", ""] + vt + [""]
+    lines += [f"IDX\t{i}" for i in idx] + [""]
+    lines += ["ATTR_LOD\t0\t1000"] + ([f"TRIS\t0\t{len(idx)}"] if in_first_lod else [])
+    lines += ["ATTR_LOD\t0\t5000", f"TRIS\t0\t{len(idx)}"]
+    with open(os.path.join(out, f"{name}.obj"), "w", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+write_additive("v_additive_both_lods", True)
+write_additive("v_additive_far_lod", False)

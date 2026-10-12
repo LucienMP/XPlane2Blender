@@ -25,6 +25,18 @@ Bug fixes:
 - Fixes the Rain panel error when nothing is selected (#752), and DataRefs.txt reading on non-UTF-8 Windows locales (#725).
 - Instanced Scenery Objects warn when X-Plane won't actually instance them: any animation, custom billboard lights, custom spill lights with a dataref, and dataref-driven named or parameterized lights (#368, #489). Checked in X-Plane 12.4.4.
 - The old VLIGHT light types (Default, Flashing, Pulsing, Strobe, Traffic) are all marked deprecated, and exporting them warns: their position ignores parenting and animation. Use Automatic lights instead (#370).
+- With LODs on, objects nobody assigned to an LOD are no longer left out silently, which left an OBJ with no geometry (#730). A root's new **Objects in No LOD** setting (in its LOD settings) decides, and the export warns, naming them:
+  - **All Distances** (default): in every LOD, or only the farthest one when the LODs are additive. X-Plane draws every additive LOD in range, so an object in all of them would be drawn several times (checked in X-Plane 12.4.3).
+  - **First LOD:** only in the closest LOD.
+  - **Not Exported:** left out, as before.
+
+  An object counts as assigned when it or a parent has *Override LODs* on, even with no LOD ticked, which stays upstream's way to leave an object out on purpose.
+- Show/Hide set on an armature bone (Bone tab) is now exported (#643, #516). It's written in the bone's animation block, so it shows or hides everything under the bone. The Bone tab always offered it, but it was ignored. The bone's custom animation attributes are now exported too. Checked in X-Plane 12.4.3.
+- With **Optimize** on, identical vertices are shared across the whole OBJ, not just within each object (#709). OBJs with repeated parts get smaller: two identical animated boxes went from 48 to 24 vertices. Every changed test output was checked to draw exactly the same triangles, and the result was checked in X-Plane 12.4.3.
+- `ATTR_shiny_rat 0` is only written to undo an earlier value. X-Plane starts at 0, and an explicit 0 looked identical to none in X-Plane 12.4.3 (#439).
+- New warnings: a mesh with no UV map in a textured OBJ, which shows as one colour and can render unpredictably (#285); Camera Collision in an Aircraft OBJ, since only cockpit objects have it (#515; scenery types already refused it); Slope Limit values outside −90 to 90 degrees, or a minimum above its maximum (#279). The Slope Limit fields now also keep to that range, and moving one end past the other moves the other end too.
+- The X-Plane panel on the Object Data tab only appears for lights and empties, the only types with settings there. For meshes it was an empty panel that looked like a broken install (#766).
+- The upstream test runner (`tests.py`, `run.py`) works on Windows again: it keeps the system environment, and finds the add-on even when git checked out the `addons/modules` symlink as a plain file (#710).
 
 New features, from open upstream pull requests:
 - Mouse wheel support for Drag Rotate manipulators (#621).
@@ -137,3 +149,7 @@ If you have Python installed (hopefully matching Blender's internal interpreter 
 ``python tests.py --print-fails``
 
 This will run all tests until the end or a failure occurs. Only detailed logs will be printed for the failed test. See ``--help`` to show all flags and what they do.
+
+Use ``--blender PATH`` when Blender isn't on your PATH, e.g. ``python tests.py --blender "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -c``. On Windows, where git usually checks out the ``addons/modules`` symlink as a plain file, the runner makes a junction for it in your temp folder.
+
+To see what an exporter change does to every test's output, set ``XP2B_TEST_OUTPUT_DIR`` to a folder: each test that compares against a fixture also saves its output there, named after the fixture's path. Run once before and once after the change, then compare the folders. The same files can replace fixtures when a change of output is intended.

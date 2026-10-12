@@ -125,3 +125,16 @@ beta. All at 13:00 local time.
 | `e2e_no_winter_jan` | The same, with winter left out of `library.txt` (the export warns) | Nothing is drawn in January. |
 | `e2e_full_jun`, `e2e_plate_if_jun` | A plate under `IF NOT SCENERY_SHADOWS`, then under `IF SCENERY_SHADOWS`, with shadows on | Hidden, then shown: XPlane2Blender's `SCENERY_SHADOWS` conditions load and work. |
 | `e2e_full_jun_no_scenery_shadows` | Art control `shadow/scenery_shadows` set to 0, scenery reloaded | Shadows went off, but the `IF NOT` plate stayed hidden. Inconclusive: the condition may follow the graphics setting rather than this control, or the reload may have kept the cached OBJ. |
+
+## Checks of the later 5.0 fixes: X-Plane 12.4.3, 12 October 2026
+
+`blender/export_fixes_checks.py` makes the `x_` objects with XPlane2Blender; `make_visual_objects.py` makes the
+hand-written `v_` ones. Scenes `fixes_lod`, `fixes_bone_opt` and `fixes_shiny`, 13:00 on 21 June at Shelton.
+
+| Check | What was compared | Result |
+|---|---|---|
+| [#730](https://github.com/X-Plane/XPlane2Blender/issues/730): objects in no LOD | XPlane2Blender exports of a box nobody assigned to an LOD: selective LODs with "All Distances" and "Not Exported", additive LODs with "All Distances" | Drawn, missing (the original bug), drawn. |
+| Do additive LODs all draw? | A half-transparent box listed in both of two additive LODs (0–1000, 0–5000) vs only the far one | About 0.62 vs 0.34 opaque against the same sky, matching drawing twice (1 − 0.66² ≈ 0.56). So "All Distances" uses only the farthest additive LOD. |
+| [#643](https://github.com/X-Plane/XPlane2Blender/issues/643): Show/Hide on a bone | A box under an armature bone with `ANIM_hide` by `sim/time/local_date_days` 100–200 (day 172), and 0–50 | Hidden, and shown. |
+| [#709](https://github.com/X-Plane/XPlane2Blender/issues/709): shared vertices | Two identical animated boxes, Optimize on (24 vertices) vs off (72) | Both draw the two rotated boxes alike (blue area within 3%; the slots see the runway from slightly different angles). No log errors. |
+| [#439](https://github.com/X-Plane/XPlane2Blender/issues/439): is `ATTR_shiny_rat 0` the default? | Normal-mapped glint panels with no `ATTR_shiny_rat`, `0`, `0.5`, `1` | No line and `0`: identical, RGB (39.8, 115.3, 233.0). `0.5`: (153.9, 171.6, 236.0); `1`: (91.2, 137.7, 234.2). |

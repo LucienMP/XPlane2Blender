@@ -71,3 +71,14 @@ SCENES["e2e_full_jun_no_scenery_shadows"] = dict(_E2E, day=172, pack=_E2E_PACK %
                                                  datarefs={"sim/private/controls/shadow/scenery_shadows": 0})
 # The plate under IF SCENERY_SHADOWS instead: shows with scenery shadows on
 SCENES["e2e_plate_if_jun"] = dict(_E2E, day=172, pack=_E2E_PACK % "plate_if")
+
+# --- Checks of the 5.0 fixes (blender/export_fixes_checks.py makes the x_ objects) ---
+# #730: unassigned box with All Distances (selective), Not Exported, All Distances (additive);
+#       then a half-transparent box in both additive LODs vs only the far one
+SCENES["fixes_lod"] = {"time": 13.0, "slots": ["x_730_sel_all", "x_730_sel_skip", "x_730_add_all",
+                                               "v_additive_both_lods", "v_additive_far_lod"]}
+# #643: bone hide (hidden on day 172), bone hide control (shown); #709: optimized vs not, must match
+SCENES["fixes_bone_opt"] = {"time": 13.0, "slots": ["x_643_hidden", "x_643_shown", "x_709_opt", "x_709_noopt"]}
+# #439: glint panels with no ATTR_shiny_rat, an explicit 0, then 0.5 and 1 as controls
+SCENES["fixes_shiny"] = {"time": 13.0, "slots": ["v_glint_nml_none", "v_glint_nml_shiny0",
+                                                 "v_glint_nml_shiny05", "v_glint_nml_shiny1"]}
