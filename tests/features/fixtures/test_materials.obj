@@ -435,6 +435,8 @@ IDX10	350	351	352	353	354	355	356	357	358	359
 	# MESH: emissive	weight: 4
 	custom_prop_reset
 	# MATERIAL: emissive
+	ATTR_no_solid_camera
+	ATTR_no_cockpit
 	TRIS	144 36
 	# 1 Mesh: green
 	# MESH: green	weight: 5

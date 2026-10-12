@@ -73,6 +73,11 @@ from ..xplane_helpers import floatToStr, logger
 # to the UI and have authors migrate their projects forward.
 
 
+# An attribute's value after a conditional block: it may or may not be in effect
+UNKNOWN_ATTRIBUTE_STATE = object()
+_MISSING = object()
+
+
 class XPlaneCommands:
     """
     Writes collected animations, attributes,
@@ -116,7 +121,11 @@ class XPlaneCommands:
             # X-Plane starts with no shininess, so ATTR_shiny_rat 0 is only needed to undo
             # an earlier non-zero value (#439)
             "ATTR_shiny_rat": 0.0,
+            "ATTR_poly_os": 0,
         }
+
+        # Attribute states saved before each open IF, see _writeXPlaneObjectPrefix
+        self._states_before_conditions: List[Dict[str, Any]] = []
 
     def write(self, *, lod_bucket_index: Optional[int]) -> str:
         """
@@ -177,8 +186,20 @@ class XPlaneCommands:
 
         return o
 
+    def _object_conditions(self, xplaneObject) -> List[Any]:
+        material = getattr(xplaneObject, "material", None)
+        return list(material.conditions if material else []) + list(
+            xplaneObject.conditions
+        )
+
     def _writeXPlaneObjectPrefix(self, xplaneObject):
         o = ""
+
+        # X-Plane skips everything inside a false IF, so attributes written there
+        # may or may not be in effect after the ENDIF. Remember the state before
+        # it, to mark what changed as unknown afterwards
+        if self._object_conditions(xplaneObject):
+            self._states_before_conditions.append(dict(self.written))
 
         # open material conditions
         if hasattr(xplaneObject, "material"):
@@ -203,6 +224,14 @@ class XPlaneCommands:
 
         # close object conditions
         o += self._writeConditions(xplaneObject.conditions, xplaneObject, True)
+
+        if self._object_conditions(xplaneObject):
+            before = self._states_before_conditions.pop()
+            for name in set(before) | set(self.written):
+                if before.get(name, _MISSING) != self.written.get(name, _MISSING):
+                    # Unequal to every value, so the attribute is written again by
+                    # the next object needing it, and reset by the next one that doesn't
+                    self.written[name] = UNKNOWN_ATTRIBUTE_STATE
 
         return o
 

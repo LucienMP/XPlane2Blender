@@ -11,10 +11,11 @@ class XPlaneAttributes(OrderedDict):
         super(XPlaneAttributes, self).__init__()
 
     def order(self):
-        """Sorts dict by attribute weight"""
-        for k, v in dict(sorted(self.items(), key=lambda item: item[1].weight)).items():
-            self[k] = v
-        return
+        """Sorts dict by attribute weight, keeping the order of equal weights"""
+        # Assigning an existing key keeps its place in an OrderedDict, so the
+        # previous version of this never moved anything
+        for name in sorted(self, key=lambda name: self[name].weight):
+            self.move_to_end(name)
 
     def add(self, attr: XPlaneAttribute):
         if attr.name in self:

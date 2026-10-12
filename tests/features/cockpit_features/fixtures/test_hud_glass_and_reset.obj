@@ -34,10 +34,12 @@ IDX	8
 	TRIS	0 3
 		# 2 Mesh: B_hud_reset
 		# MESH: B_hud_reset	weight: 0
+		ATTR_hud_reset
 		# MATERIAL: Material.002
 		TRIS	3 3
 			# 3 Mesh: C_HUD
 			# MESH: C_HUD	weight: 0
+			ATTR_hud_glass
 			# MATERIAL: Material.001
 			TRIS	6 3
 

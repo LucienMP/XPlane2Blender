@@ -125,9 +125,9 @@ class XPlaneMaterial:
                 # add conditions
                 self.collectConditions(mat)
 
-                # polygon offsett attribute
-                if mat.xplane.poly_os > 0:
-                    self.attributes["ATTR_poly_os"].setValue(mat.xplane.poly_os)
+                # polygon offset attribute. 0 undoes an earlier object's offset;
+                # the state machine starts at 0, so it isn't written otherwise
+                self.attributes["ATTR_poly_os"].setValue(mat.xplane.poly_os)
 
                 if mat.xplane.cockpit_feature == COCKPIT_FEATURE_NONE:
                     xplane_version = int(bpy.context.scene.xplane.version)
@@ -352,7 +352,7 @@ class XPlaneMaterial:
 
         # if the file is a cockpit file write all cockpit attributes
         if xplaneFile.options.export_type == EXPORT_TYPE_COCKPIT or (
-            bpy.context.scene.xplane.version >= VERSION_1040
+            int(bpy.context.scene.xplane.version) >= int(VERSION_1040)
             and xplaneFile.options.export_type == EXPORT_TYPE_AIRCRAFT
         ):
             for attr in self.cockpitAttributes:

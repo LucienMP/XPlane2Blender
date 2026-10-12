@@ -44,26 +44,13 @@ class XPlanePrimitive(XPlaneObject):
 
     def setWeight(self, defaultWeight:int = 0)->None:
         """
-        If not default, weight will 0 if no materials
-        given, or it will be the index of the last matching material
-        in the bpy.data.materials array + XPlaneObject's
-        weight.
+        The object's own weight if Override Weight is on, else XPlaneObject's
+        (a material-based weight was once planned here, but never applied)
         """
         super().setWeight(defaultWeight)
         if self.blenderObject.xplane.override_weight:
             self.weight = self.blenderObject.xplane.weight
         else:
-            try:
-                ref_mat = self.blenderObject.data.materials[0]
-                if ref_mat is None:
-                    raise TypeError
-            except (IndexError, TypeError):
-                pass
-            else:
-                weight = 0
-                for i, mat in enumerate(bpy.data.materials):
-                    if ref_mat == mat:
-                        weight = i
             self.weight += defaultWeight
 
     def collect(self) -> None:
@@ -73,7 +60,10 @@ class XPlanePrimitive(XPlaneObject):
         if 1200 <= xplane_version and bl_obj.xplane.hud_glass:
             self.attributes["ATTR_hud_glass"].setValue(True)
             self.attributes["ATTR_hud_reset"].setValue(False)
-            pass
+        else:
+            # Undoes an earlier object's ATTR_hud_glass. The state machine starts
+            # with it written, so it only appears after a HUD glass object
+            self.attributes["ATTR_hud_reset"].setValue(True)
 
         # add manipulator attributes
         self.manipulator.collect()

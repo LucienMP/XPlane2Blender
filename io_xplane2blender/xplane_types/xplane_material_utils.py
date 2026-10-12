@@ -80,7 +80,20 @@ def compareInstanced(
                 f"Specularity must be {floatToStr(ref_mat_spec)}, is {floatToStr(mat_spec)}"
             )
 
-        if mat.options.blend != refMat.options.blend:
+        # X-Plane 10+ uses blend_v1000 (the exporter and the UI do); comparing the
+        # X-Plane 9 checkbox let differing blend modes through, which break instancing
+        if int(bpy.context.scene.xplane.version) >= 1000:
+            mat_blend, ref_blend = mat.options.blend_v1000, refMat.options.blend_v1000
+            if mat_blend != ref_blend:
+                errors.append(
+                    f"Blend mode must be '{ref_blend}', is '{mat_blend}'."
+                )
+            elif (
+                mat_blend != BLEND_ON
+                and mat.options.blendRatio != refMat.options.blendRatio
+            ):
+                errors.append("Alpha cutoff ratio must be %f" % refMat.options.blendRatio)
+        elif mat.options.blend != refMat.options.blend:
             if refMat.options.blend:
                 errors.append("Alpha cutoff must be enabled.")
             else:
@@ -154,11 +167,14 @@ def validate(mat: XPlaneMaterial, exportType: str) -> MaterialValidationMsgs:
         return validateInstanced(mat)
     elif exportType == EXPORT_TYPE_COCKPIT and cockpit_feature == COCKPIT_FEATURE_PANEL:
         return validatePanel(mat)
-    elif exportType == EXPORT_TYPE_COCKPIT and cockpit_feature == COCKPIT_FEATURE_NONE:
+    elif exportType == EXPORT_TYPE_COCKPIT and cockpit_feature in {
+        COCKPIT_FEATURE_NONE,
+        COCKPIT_FEATURE_DEVICE,
+    }:
         return validateCockpit(mat)
     elif exportType == EXPORT_TYPE_AIRCRAFT:
         if (
-            bpy.context.scene.xplane.version >= VERSION_1040
+            int(bpy.context.scene.xplane.version) >= int(VERSION_1040)
             and cockpit_feature == COCKPIT_FEATURE_PANEL
         ):
             return validatePanel(mat)

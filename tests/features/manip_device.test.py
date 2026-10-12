@@ -33,6 +33,7 @@ class TestManipDevice(XPlaneTestCase):
         self.screen_mat = bpy.data.materials.new("screen")
         self.screen_mat.xplane.cockpit_feature = COCKPIT_FEATURE_DEVICE
         self.screen_mat.xplane.device_name = DEVICE_G1000_PFD1
+        self.screen_mat.xplane.device_bus_0 = True
 
     def _attr_lines(self):
         return [
@@ -52,6 +53,7 @@ class TestManipDevice(XPlaneTestCase):
         self.manip_mat.xplane.cockpit_feature = COCKPIT_FEATURE_DEVICE
         self.manip_mat.xplane.device_name = DEVICE_PLUGIN
         self.manip_mat.xplane.plugin_device = "tablet_screen"
+        self.manip_mat.xplane.device_bus_0 = True
         lines = self._attr_lines()
         self.assertIn(["ATTR_manip_device", "hand", "tablet_screen", "Touch"], lines)
 
