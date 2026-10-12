@@ -134,7 +134,7 @@ class DatablockInfo:
             elif self.rotation_mode == "QUATERNION":
                 assert len(self.rotation) == 4
                 self.rotation_quaternion = rotation
-            elif set(self.rotation_mode) == {"x", "y", "z"}:
+            elif set(self.rotation_mode) == {"X", "Y", "Z"}:
                 assert len(self.rotation) == 3
                 self.rotation_euler = rotation
             else:
@@ -491,7 +491,7 @@ def create_datablock_light(
     light_type: str,
     scene: Optional[Union[bpy.types.Scene, str]] = None,
 ):
-    assert light_type in {"POINT", "SUN", "SPOT", "ARENA"}
+    assert light_type in {"POINT", "SUN", "SPOT", "AREA"}
     li = bpy.data.lights.new(info.name, light_type)
     ob = bpy.data.objects.new(info.name, li)
     set_collection(ob, info.collection)
@@ -709,9 +709,10 @@ def make_root_unexportable(
         }
         all_layer_collections[exportable_root.name].hide_viewport = True
     elif isinstance(exportable_root, bpy.types.Object):
-        exportable_root.xplane.isExportableRoot = True
+        exportable_root.xplane.isExportableRoot = False
         # This is actually talking about "Visible In Viewport" - the little eyeball
-        exportable_root.hide_set(disable_viewport)
+        exportable_root.hide_set(True)
+        exportable_root.hide_viewport = disable_viewport
     else:
         assert False, "How did we get here?!"
 
@@ -913,7 +914,7 @@ def set_material(
         blender_object.data.materials.append(mat)
     if material_props:
         for prop, value in material_props.items():
-            setattr(mat.xplane.manip, prop, value)
+            setattr(mat.xplane, prop, value)
 
 
 def set_parent(blender_object: bpy.types.Object, parent_info: ParentInfo) -> None:

@@ -167,8 +167,11 @@ class XPlaneTestCase(unittest.TestCase):
             a_pixels = chunk(array.array("f", cmp_img_a.pixels), 4)
             b_pixels = chunk(array.array("f", cmp_img_b.pixels), 4)
         finally:
-            bpy.data.images.remove(cmp_img_a)
-            bpy.data.images.remove(cmp_img_b)
+            # Only images loaded here from a path are removed
+            if isinstance(img_a, (str, Path)):
+                bpy.data.images.remove(cmp_img_a)
+            if isinstance(img_b, (str, Path)):
+                bpy.data.images.remove(cmp_img_b)
 
         for i, ((a_pixel), (b_pixel)) in enumerate(zip(a_pixels, b_pixels)):
             if 0b1000 & channels:
@@ -668,7 +671,12 @@ class XPlaneTestCase(unittest.TestCase):
         Returns the content of the log file after export as a collection of lines, no trailing new lines,
         or KeyError if the text block doesn't exist yet (rare).
         """
-        return [l.body for l in bpy.data.texts["XPlane2Blender.log"].lines]
+        # The export operator's block is "xplane2blender.log", a transport made with
+        # the default name is "XPlane2Blender.log"
+        for name in ("xplane2blender.log", "XPlane2Blender.log"):
+            if name in bpy.data.texts:
+                return [l.body for l in bpy.data.texts[name].lines]
+        raise KeyError("No XPlane2Blender log text block")
 
 
 class XPlaneAnimationTestCase(XPlaneTestCase):

@@ -14,15 +14,8 @@ def _build_number_sanity_check(string: str):
     """Performs the basic sanity check for build number that is is in YYYYMMDDHHMMSS"""
     if len(string) == 14 and string.isdigit():
         try:
-            dt = datetime.datetime(
-                year=string[0:3],
-                month=string[4:5],
-                day=string[6:7],
-                hour=string[8:9],
-                minute=string[10:11],
-                second=string[12:13],
-            )
-        except:
+            datetime.datetime.strptime(string, "%Y%m%d%H%M%S")
+        except ValueError:
             raise argparse.ArgumentTypeError(
                 string + " is not convertable to a datetime"
             )
@@ -122,7 +115,9 @@ def _make_parser() -> argparse.ArgumentParser:
     )
 
     build_process_group.add_argument(
-        "--make-overrides-permanent", help="Changes source files to match inputs"
+        "--make-overrides-permanent",
+        action="store_true",
+        help="Changes source files to match inputs",
     )
 
     build_process_group.add_argument(
@@ -260,8 +255,7 @@ def _change_version_info(new_version: VerData) -> Optional[VerData]:
 def _run_tests(test_args) -> None:
     """Returns None for all good or re-raises subprocess's execption"""
     try:
-        completed = subprocess.run(["python", "tests.py"] + test_args)
-        print(completed.stdout)
+        subprocess.run([sys.executable, "tests.py"] + test_args, check=True)
     except subprocess.CalledProcessError as e:
         raise e
 
@@ -272,7 +266,7 @@ def _delete_unwanted_contents(keep_files: str) -> None:
         if keep_files == "only-tracked":
             sub_args = "git ls-files -c".split()
         elif keep_files == "not-ignored":
-            sub_args = "git ls-files --others --ignore --exclude-from=.gitignore"
+            sub_args = "git ls-files --others --ignore --exclude-from=.gitignore".split()
         completed = subprocess.run(sub_args, stdout=subprocess.PIPE, encoding="utf-8")
     except subprocess.CalledProcessError as e:
         raise e

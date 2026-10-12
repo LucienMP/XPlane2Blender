@@ -143,12 +143,9 @@ def main(argv=None) -> int:
     clean_tmp_folder()
     if argv is None:
         argv = _make_argparse().parse_args(sys.argv[1:])
-        if argv.filter:
-            argv.filter = re.escape(argv.filter)
-        if argv.start_at:
-            argv.start_at = re.escape(argv.start_at)
-        if argv.exclude:
-            argv.exclude = re.escape(argv.exclude)
+        # The help text promises regular expressions, and the paths they match are
+        # given with '/' separators on every platform
+        pass
 
     def printTestBeginning(text):
         """
@@ -171,6 +168,7 @@ def main(argv=None) -> int:
         Tests if filepath matches --filter and/or --exclude,
         always returns False if --start-at hasn't been satisfied yet
         """
+        filepath = filepath.replace(os.sep, "/")
         if argv.start_at is None:
             inFilter.should_start_taking = True  # type: bool
         elif getattr(inFilter, "should_start_taking", None) is None:
@@ -203,11 +201,11 @@ def main(argv=None) -> int:
                 files,
             )
         )
-        if exit_code != 0:
+        if exit_code != 0 and not argv.keep_going:
             break
 
         for pyFile in filtered_files:
-            if exit_code != 0:
+            if exit_code != 0 and not argv.keep_going:
                 break
 
             pyFile = os.path.join(root, pyFile)
@@ -259,8 +257,14 @@ def main(argv=None) -> int:
             enviro["BLENDER_USER_SCRIPTS"] = blender_user_scripts()
 
             # Run Blender, normalize output line endings because Windows is dumb
+            # Blender's Python prints UTF-8; the locale codec (cp1252 on Windows)
+            # used to abort the whole run on the first non-ASCII character
             out = subprocess.check_output(
-                blender_args, stderr=subprocess.STDOUT, universal_newlines=True, env=enviro
+                blender_args,
+                stderr=subprocess.STDOUT,
+                encoding="utf-8",
+                errors="replace",
+                env=enviro,
             )  # type: str
             if not argv.force_blender_debug:
                 # Ignore the junk!
@@ -320,10 +324,9 @@ def main(argv=None) -> int:
                     else:
                         print("%s FAILED" % pyFile)
 
-                    if not argv.keep_going:
-                        exit_code = 1
-                    else:
-                        exit_code = 0
+                    # --continue keeps running, but the exit code must still say
+                    # that something failed
+                    exit_code = 1
                 elif argv.quiet or argv.print_fails:
                     print("%s passed" % pyFile)
 
