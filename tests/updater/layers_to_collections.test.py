@@ -99,6 +99,7 @@ class TestLayersToCollections(XPlaneTestCase):
         defaults["customAttributes"] = []
         defaults["export_path_directives"] = []
         defaults["lod"] = [{"expanded": False, "near": 0, "far": 0}]
+        defaults["library"] = {}
         defaults["rain"] = {}
         """
         TODO: We need to make POINTER properties assert recursively

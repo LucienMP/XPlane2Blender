@@ -91,6 +91,16 @@ ANIM_TYPE_HIDE = "hide"
 CONDITION_GLOBAL_LIGHTING = "GLOBAL_LIGHTING"
 CONDITION_GLOBAL_SHADOWS = "GLOBAL_SHADOWS"
 CONDITION_VERSION10 = "VERSION10"
+CONDITION_SCENERY_SHADOWS = "SCENERY_SHADOWS"
+
+# library.txt export modes
+LIBRARY_MODE_EXPORT = "export"
+LIBRARY_MODE_EXTEND = "extend"
+LIBRARY_MODE_EXCLUDE = "exclude"
+LIBRARY_MODE_BACKUP = "backup"
+
+# library.txt seasons, in X-Plane's order
+LIBRARY_SEASONS = ("spr", "sum", "fal", "win")
 
 COCKPIT_FEATURE_NONE = "none"
 # See panel modes as well

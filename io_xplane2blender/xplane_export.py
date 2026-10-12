@@ -11,6 +11,7 @@ import mathutils
 import io_xplane2blender
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
+from . import xplane_library
 from .xplane_config import getDebug
 from .xplane_helpers import XPlaneLogger, logger
 from .xplane_types import xplane_file
@@ -104,6 +105,8 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             self.only_selected_roots            
         )
         exported = 0
+        # (layer settings, absolute path) of each OBJ written, for library.txt
+        self._written = []
         try:
             for xplaneFile in xplaneFiles:
                 if not xplaneFile.get_xplane_objects():
@@ -127,6 +130,18 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             # return to stored frame
             bpy.context.scene.frame_set(frame=currentFrame)
             bpy.context.view_layer.update()
+
+        if self._written and not logger.hasErrors():
+            xplane_library.write_libraries(
+                self._written,
+                os.path.abspath(
+                    os.path.join(
+                        os.path.dirname(bpy.context.blend_data.filepath), export_directory
+                    )
+                ),
+                bpy.path.basename(bpy.context.blend_data.filepath) or "untitled.blend",
+                self._dry_run(),
+            )
 
         if not xplaneFiles:
             logger.error(
@@ -232,9 +247,7 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         if logger.hasErrors():
             return False
 
-        plugin_development = bpy.context.scene.xplane.plugin_development
-        dry_run = bpy.context.scene.xplane.dev_export_as_dry_run
-        if not plugin_development or (plugin_development and not dry_run):
+        if not self._dry_run():
             try:
                 os.makedirs(os.path.dirname(fullpath), exist_ok=True)
             except OSError as e:
@@ -247,7 +260,15 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         else:
             logger.info('Skipped writing %s due to "Dry Run"' % (fullpath))
 
+        self._written.append((xplaneFile.options, fullpath))
         return True
+
+    @staticmethod
+    def _dry_run() -> bool:
+        return (
+            bpy.context.scene.xplane.plugin_development
+            and bpy.context.scene.xplane.dev_export_as_dry_run
+        )
 
     def invoke(self, context, event):
         """

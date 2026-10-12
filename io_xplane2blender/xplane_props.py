@@ -481,6 +481,60 @@ class XPlaneExportPathDirective(bpy.types.PropertyGroup):
     )
 
 
+class XPlaneLibraryExport(bpy.types.PropertyGroup):
+    """How an OBJ is published in its scenery pack's library.txt"""
+    enabled: bpy.props.BoolProperty(
+        name = "Add to library.txt",
+        description = "Publish this OBJ under a library path in library.txt, written at the scenery pack's root"
+                      " (or next to the OBJs when they aren't in a scenery pack) when exporting",
+        default = False
+    )
+
+    virtual_path: bpy.props.StringProperty(
+        name = "Library Path",
+        description = "The virtual path other scenery uses for this OBJ, e.g. 'lib/my_library/trees/oak.obj'",
+        default = ""
+    )
+
+    mode: bpy.props.EnumProperty(
+        name = "Mode",
+        description = "How this OBJ is published under the library path",
+        items = [
+            (LIBRARY_MODE_EXPORT, "Export", "Replaces what lower priority packs publish under the path (EXPORT)"),
+            (LIBRARY_MODE_EXTEND, "Extend", "Adds to what lower priority packs publish under the path (EXPORT_EXTEND)"),
+            (LIBRARY_MODE_EXCLUDE, "Exclude", "Publishes the path, and stops lower priority packs from publishing it (EXPORT_EXCLUDE)"),
+            (LIBRARY_MODE_BACKUP, "Backup", "Only used when no other pack publishes the path (EXPORT_BACKUP)"),
+        ],
+        default = LIBRARY_MODE_EXPORT
+    )
+
+    use_ratio: bpy.props.BoolProperty(
+        name = "Ratio",
+        description = "Weights how often X-Plane picks this OBJ among the OBJs published under the same path (EXPORT_RATIO)",
+        default = False
+    )
+
+    ratio: bpy.props.FloatProperty(
+        name = "Ratio",
+        description = "Relative chance of X-Plane picking this OBJ",
+        default = 1.0,
+        min = 0.0,
+        soft_max = 10.0
+    )
+
+    seasonal: bpy.props.BoolProperty(
+        name = "By Season",
+        description = "Only use this OBJ in some seasons (EXPORT_SEASON, X-Plane 12). X-Plane needs all four seasons covered"
+                      " under the path, and a path can't mix seasonal and non-seasonal OBJs",
+        default = False
+    )
+
+    season_spr: bpy.props.BoolProperty(name = "Spring", description = "Use this OBJ in spring", default = False)
+    season_sum: bpy.props.BoolProperty(name = "Summer", description = "Use this OBJ in summer", default = False)
+    season_fal: bpy.props.BoolProperty(name = "Autumn", description = "Use this OBJ in autumn", default = False)
+    season_win: bpy.props.BoolProperty(name = "Winter", description = "Use this OBJ in winter", default = False)
+
+
 class XPlaneEmitter(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name = "Emitter Name",
@@ -626,10 +680,12 @@ class XPlaneCondition(bpy.types.PropertyGroup):
         name = "Variable",
         description = "Variable",
         default = CONDITION_GLOBAL_LIGHTING,
+        # New items go at the end: the stored value is the item's index
         items = [
-            (CONDITION_GLOBAL_LIGHTING, 'HDR', 'HDR mode On/Off'),
-            (CONDITION_GLOBAL_SHADOWS, 'Global Shadows', 'Global shadows On/Off'),
-            (CONDITION_VERSION10, 'Version 10.x', 'Always "On", as V9 does not support conditions')
+            (CONDITION_GLOBAL_LIGHTING, 'HDR', 'HDR mode On/Off. Always on in X-Plane 12, which has no non-HDR mode'),
+            (CONDITION_GLOBAL_SHADOWS, 'Global Shadows', 'On when any shadows are enabled'),
+            (CONDITION_VERSION10, 'Version 10.x', 'Always "On", as V9 does not support conditions'),
+            (CONDITION_SCENERY_SHADOWS, 'Scenery Shadows', 'On when scenery casts shadows. Laminar uses "Must Be On" off (IF NOT) for fake ground shadows'),
         ]
     )
 
@@ -1220,6 +1276,12 @@ class XPlaneLayer(bpy.types.PropertyGroup):
         name = "Export Directives for OBJ",
         description = "A collection of export paths intended for an OBJ's EXPORT directives",
         type = XPlaneExportPathDirective
+    )
+
+    library: bpy.props.PointerProperty(
+        name = "Library",
+        description = "How this OBJ is published in library.txt",
+        type = XPlaneLibraryExport
     )
 
     luminance_override: bpy.props.BoolProperty(
@@ -2702,6 +2764,7 @@ _classes = (
     XPlaneWheel,
     XPlaneEmpty,
     XPlaneExportPathDirective,
+    XPlaneLibraryExport,
     ListItemCommand,
     XPlaneCommandSearchWindow,
     ListItemDataref,

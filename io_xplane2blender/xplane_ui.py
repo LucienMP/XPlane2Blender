@@ -931,6 +931,8 @@ def layer_layout(
             require_box = scenery_props_group_box.row()
             require_box.prop(layer_props, "require_surface", text="Require surface")
 
+        library_layout(scenery_props_group_box.box(), layer_props.library, version)
+
     # Advanced Options
     advanced_box = layout.box()
     advanced_box.label(text="Advanced Options")
@@ -949,6 +951,30 @@ def layer_layout(
         rain_layout(rain_box, layer_props, version)
 
     advanced_box.prop(layer_props, "debug")
+
+
+def library_layout(
+    layout: bpy.types.UILayout,
+    library_props: xplane_props.XPlaneLibraryExport,
+    version: int,
+) -> None:
+    """Draws how the OBJ is published in library.txt"""
+    layout.prop(library_props, "enabled")
+    if not library_props.enabled:
+        return
+    layout.prop(library_props, "virtual_path")
+    layout.row().prop(library_props, "mode", expand=True)
+    layout.prop(library_props, "seasonal")
+    if library_props.seasonal:
+        row = layout.row(align=True)
+        for season in LIBRARY_SEASONS:
+            row.prop(library_props, f"season_{season}", toggle=True)
+    elif library_props.mode == LIBRARY_MODE_EXPORT:
+        row = layout.row(align=True)
+        row.prop(library_props, "use_ratio", text="")
+        sub = row.row()
+        sub.active = library_props.use_ratio
+        sub.prop(library_props, "ratio")
 
 
 def custom_layer_layout(
