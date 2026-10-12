@@ -106,8 +106,9 @@ X-Plane's rules for seasons, which the export checks:
 How X-Plane 12 picks the season, as tested in X-Plane 12.4.3 and 12.4.4 ([tool and results](tools/xplane12_instancing_test)):
 - **It doesn't simply follow the calendar.** At 47°N (Shelton, WA), 15 January gave winter, 15 April spring, 21 June still spring, 15 August summer, and 15 October autumn.
 - **The tropics stay in one season.** At 17.8°S (Nadi, Fiji), both January and June gave spring, so give tropical scenery a spring OBJ that looks right all year.
+- **The southern hemisphere has the opposite seasons.** At 42.8°S (Hobart), 15 January, 15 February and even 15 April gave summer, 21 June and 15 August winter, and 15 October spring. At 38°S (Moorabbin, Melbourne), 15 February gave summer and 15 August winter. So one seasonal set of OBJs works in both hemispheres: X-Plane picks the right one for the place.
+- **The climate matters too.** 15 April was still summer at Hobart, while the mirror date at Shelton (15 October) was already autumn.
 - **It's chosen when the scenery loads.** Changing the date mid-flight from June to January didn't change the OBJ within 90 seconds.
-- **Not tested:** whether the seasons are reversed at southern temperate latitudes. That needs southern base scenery that wasn't installed.
 
 ## General Requirements
 - Blender 5.0 or later. Tested with Blender 5.2 LTS.

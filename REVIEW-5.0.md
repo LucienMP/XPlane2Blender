@@ -41,7 +41,7 @@ The unofficial forum port reviewed in section 2 is kept unchanged on the branch 
 - **Not started:** [#497](https://github.com/X-Plane/XPlane2Blender/issues/497) (unused bone Weight; upstream decided to remove it), [#746](https://github.com/X-Plane/XPlane2Blender/issues/746) and [#338](https://github.com/X-Plane/XPlane2Blender/issues/338) (packaging as a Blender Extension).
 - **46 feature requests** (appendix, section D), and about 80 open issues that don't apply to 5.0 (appendix, section E).
 - **Pull requests not adopted:** [#714](https://github.com/X-Plane/XPlane2Blender/pull/714) and [#681](https://github.com/X-Plane/XPlane2Blender/pull/681), both for the experimental importer, which isn't in 5.0.
-- **Untested in X-Plane:** whether seasons are reversed at southern temperate latitudes (no such scenery was installed), and `IF NOT SCENERY_SHADOWS` with scenery shadows turned off in the graphics settings.
+- **Untested in X-Plane:** `IF NOT SCENERY_SHADOWS` with scenery shadows turned off in the graphics settings.
 
 ---
 
@@ -209,7 +209,7 @@ No upstream issue asks for this; it was added for X-Plane 12's seasonal objects 
 - **Where it's written:** at the scenery pack's root when exporting into `Custom Scenery/<pack>/`, otherwise in the export folder.
 - **Safe with existing files:** only a block marked with the .blend file's name is changed. Each export replaces only the lines of the OBJs it wrote, so exporting one root, or turning the option off, leaves the rest alone.
 - **Checks:** a path published both by season and not is an error; a season left uncovered is a warning, since X-Plane then shows nothing (confirmed in the sim).
-- **How X-Plane picks the season** turned out not to follow the calendar. At 47°N, 21 June was still spring and 15 August summer, and the tropics stayed in spring all year. The season is picked when the scenery loads. Details are in the [tool's results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test#season-and-librarytxt-results-12-october-2026).
+- **How X-Plane picks the season** turned out not to follow the calendar. At 47°N, 21 June was still spring and 15 August summer, and the tropics stayed in spring all year. The southern hemisphere gets the opposite seasons: at Hobart (42.8°S) 15 January to 15 April were summer, June and August winter, and October spring, so one seasonal set of OBJs works in both hemispheres. The season is picked when the scenery loads. Details are in the [tool's results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test#season-and-librarytxt-results-12-october-2026).
 
 ---
 
@@ -220,9 +220,9 @@ No upstream issue asks for this; it was added for X-Plane 12's seasonal objects 
 - **UI:** in a real Blender window, every X-Plane panel (Scene, Render, Object, Data, Material, Bone) was drawn for a mesh, a light and an armature. None raised an error. The bone keyframe-state markers (#738) were checked on a keyframe, between keyframes, and after an unkeyed change.
 - **X-Plane 12.4.4:** the instancing rules behind the #368/#489 warnings were checked in the sim, 15 variants with 10,000 copies each ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)).
 - **X-Plane 12.4.4, visual checks:** side-by-side night and day scenes for #755, #284, #461, #621 and custom spill lights, including XPlane2Blender's own exports before and after the custom spill fix ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)).
-- **X-Plane 12.4.4 and 12.4.3, seasons and `library.txt`:** `EXPORT_SEASON` at 47°N across the year, in the tropics, and with a mid-flight date change; XPlane2Blender's own seasonal exports and `library.txt` end to end, including a season left out; and its `SCENERY_SHADOWS` conditions. Southern temperate latitudes weren't tested: no base scenery for them was installed.
+- **X-Plane 12.4.4 and 12.4.3, seasons and `library.txt`:** `EXPORT_SEASON` at 47°N and 42.8°S across the year, at 38°S, in the tropics, and with a mid-flight date change; XPlane2Blender's own seasonal exports and `library.txt` end to end, including a season left out; and its `SCENERY_SHADOWS` conditions. Southern temperate latitudes weren't tested: no base scenery for them was installed.
 - **X-Plane 12.4.3, checks of the later fixes:** XPlane2Blender's exports for #730 (selective and additive LODs, and the old behaviour), bone Show/Hide (#643), shared vertices (#709, against the unoptimized export), and `ATTR_shiny_rat 0` against none (#439). Also that X-Plane draws every additive LOD in range. For #709 and #439 every changed test output was also compared line by line: the drawn triangles and the shininess at each `TRIS` are unchanged.
-- **Not tested:** any Blender version other than 5.2; loading most exported OBJs in X-Plane (outputs are checked against the upstream test fixtures; the X-Plane checks above cover specific features); seasons at southern temperate latitudes; and `IF NOT SCENERY_SHADOWS` with scenery shadows off in the graphics settings (turning them off through an art control removed the shadows, but the condition didn't change, so the result was inconclusive).
+- **Not tested:** any Blender version other than 5.2; loading most exported OBJs in X-Plane (outputs are checked against the upstream test fixtures; the X-Plane checks above cover specific features); and `IF NOT SCENERY_SHADOWS` with scenery shadows off in the graphics settings (turning them off through an art control removed the shadows, but the condition didn't change, so the result was inconclusive).
 
 ---
 

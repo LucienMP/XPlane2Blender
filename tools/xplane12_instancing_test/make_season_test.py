@@ -1,7 +1,8 @@
 """
 Builds the EXPORT_SEASON test: four coloured boxes (spring green, summer red, autumn blue,
 winter white) published under one library path by season, and DSFs that place that path
-in front of the aircraft at Shelton, WA (47N) and Nadi, Fiji (17.8S).
+in front of the aircraft at Shelton, WA (47N), Nadi, Fiji (17.8S), Hobart (42.8S)
+and Moorabbin, Melbourne (38.0S).
 
     python make_season_test.py PATH\\TO\\DSFTool.exe
 """
@@ -48,6 +49,8 @@ SITES = {
     # name: runway threshold, far end
     "kshn": ((47.2309749, -123.1569165), (47.2361390, -123.1382110)),
     "nffn": ((-17.7727813, 177.4290957), (-17.7498943, 177.4475213)),
+    "ymhb": ((-42.8282235, 147.5010241), (-42.8455863, 147.5246001)),  # Hobart, 42.8S
+    "ymmb": ((-37.9721540, 145.0978984), (-37.9803148, 145.1059491)),  # Moorabbin, 38.0S
     # Open ocean at 45N and 45S, so no missing base scenery; flown with the seaplane
     "ocean45n": ((45.5, -150.5), (45.6, -150.5)),
     "ocean45s": ((-45.5, -150.5), (-45.4, -150.5)),

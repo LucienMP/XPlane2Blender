@@ -82,3 +82,12 @@ SCENES["fixes_bone_opt"] = {"time": 13.0, "slots": ["x_643_hidden", "x_643_shown
 # #439: glint panels with no ATTR_shiny_rat, an explicit 0, then 0.5 and 1 as controls
 SCENES["fixes_shiny"] = {"time": 13.0, "slots": ["v_glint_nml_none", "v_glint_nml_shiny0",
                                                  "v_glint_nml_shiny05", "v_glint_nml_shiny1"]}
+
+# Southern temperate latitudes: are the seasons reversed? Hobart (42.8S) mirrors Shelton (47N),
+# plus 15 Feb, the southern mirror of 15 Aug; Moorabbin, Melbourne (38.0S) as a second site
+_YMHB = {"latitude": -42.8284147, "longitude": 147.5012836, "heading_true": 135.13}
+_YMMB = {"latitude": -37.972367, "longitude": 145.0981085, "heading_true": 142.13}
+for _day, _month in ((15, "jan"), (46, "feb"), (105, "apr"), (172, "jun"), (227, "aug"), (288, "oct")):
+    SCENES[f"season_ymhb_{_month}"] = dict(_SEASON, day=_day, start=_YMHB, tile=("dsf_season_ymhb", "-50+140/-43+147.dsf"))
+for _day, _month in ((46, "feb"), (227, "aug")):
+    SCENES[f"season_ymmb_{_month}"] = dict(_SEASON, day=_day, start=_YMMB, tile=("dsf_season_ymmb", "-40+140/-38+145.dsf"))
