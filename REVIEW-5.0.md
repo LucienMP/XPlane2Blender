@@ -9,6 +9,7 @@ The unofficial forum port reviewed in section 2 is kept unchanged on the branch 
 **Commit links** point to commits on this fork's `master`.
 
 ## Contents
+0. [At a glance](#at-a-glance)
 1. [Where the code came from](#1-where-the-code-came-from)
 2. [Review of the unofficial ChatGPT-assisted port](#2-review-of-the-unofficial-chatgpt-assisted-port)
 3. [Upstream pull requests](#3-upstream-pull-requests)
@@ -16,6 +17,31 @@ The unofficial forum port reviewed in section 2 is kept unchanged on the branch 
 5. [Other changes made for 5.0](#5-other-changes-made-for-50)
 6. [How 5.0 was tested](#6-how-50-was-tested)
 7. [Appendix: triage of all open upstream issues](#appendix-triage-of-all-open-upstream-issues-october-2026)
+
+---
+
+## At a glance
+
+**What 5.0 contains** (details in sections 3 to 5):
+- **Blender 5 support:** animation export with Blender 5's slotted Actions, including bone dataref animation; older .blend files update correctly; wiper baking works with current Cycles; the material panel shows Specular again.
+- **29 upstream issues fixed, and [#284](https://github.com/X-Plane/XPlane2Blender/issues/284) partly:**
+  - Blender 5 and animation: [#758](https://github.com/X-Plane/XPlane2Blender/issues/758), [#754](https://github.com/X-Plane/XPlane2Blender/issues/754), [#743](https://github.com/X-Plane/XPlane2Blender/issues/743), [#762](https://github.com/X-Plane/XPlane2Blender/issues/762), [#190](https://github.com/X-Plane/XPlane2Blender/issues/190), [#738](https://github.com/X-Plane/XPlane2Blender/issues/738), [#565](https://github.com/X-Plane/XPlane2Blender/issues/565).
+  - Export correctness: [#763](https://github.com/X-Plane/XPlane2Blender/issues/763) (attributes in every LOD), [#730](https://github.com/X-Plane/XPlane2Blender/issues/730) (objects in no LOD), [#643](https://github.com/X-Plane/XPlane2Blender/issues/643) and [#516](https://github.com/X-Plane/XPlane2Blender/issues/516) (bone Show/Hide), [#709](https://github.com/X-Plane/XPlane2Blender/issues/709) (shared vertices), [#439](https://github.com/X-Plane/XPlane2Blender/issues/439) (redundant `ATTR_shiny_rat 0`), [#741](https://github.com/X-Plane/XPlane2Blender/issues/741) (symlinked textures).
+  - Errors and messages: [#751](https://github.com/X-Plane/XPlane2Blender/issues/751), [#752](https://github.com/X-Plane/XPlane2Blender/issues/752), [#704](https://github.com/X-Plane/XPlane2Blender/issues/704), [#725](https://github.com/X-Plane/XPlane2Blender/issues/725) (partly).
+  - New warnings: [#473](https://github.com/X-Plane/XPlane2Blender/issues/473) and [#577](https://github.com/X-Plane/XPlane2Blender/issues/577) (spaces in texture paths), [#285](https://github.com/X-Plane/XPlane2Blender/issues/285) (no UV map), [#515](https://github.com/X-Plane/XPlane2Blender/issues/515) (Camera Collision on aircraft), [#279](https://github.com/X-Plane/XPlane2Blender/issues/279) (Slope Limit), [#368](https://github.com/X-Plane/XPlane2Blender/issues/368) and [#489](https://github.com/X-Plane/XPlane2Blender/issues/489) (Instanced Scenery that X-Plane won't instance), [#370](https://github.com/X-Plane/XPlane2Blender/issues/370) (VLIGHT deprecated).
+  - X-Plane 12 features: [#621](https://github.com/X-Plane/XPlane2Blender/issues/621) (mouse wheel on Drag Rotate), [#284](https://github.com/X-Plane/XPlane2Blender/issues/284) (`SCENERY_SHADOWS` condition).
+  - UI and tooling: [#766](https://github.com/X-Plane/XPlane2Blender/issues/766) (empty Data panel), [#710](https://github.com/X-Plane/XPlane2Blender/issues/710) (test runner on Windows).
+- **Found while testing, no upstream issue:** custom spill lights gave no light in X-Plane 12; fixed.
+- **7 of 9 upstream pull requests adopted:** [#765](https://github.com/X-Plane/XPlane2Blender/pull/765), [#767](https://github.com/X-Plane/XPlane2Blender/pull/767), [#753](https://github.com/X-Plane/XPlane2Blender/pull/753), [#759](https://github.com/X-Plane/XPlane2Blender/pull/759), [#760](https://github.com/X-Plane/XPlane2Blender/pull/760), [#761](https://github.com/X-Plane/XPlane2Blender/pull/761), [#764](https://github.com/X-Plane/XPlane2Blender/pull/764).
+- **New features:** publishing OBJs in `library.txt`, including seasonal variants; the "Objects in No LOD" setting; the bundled `lights.txt` updated to X-Plane 12.4.4's.
+- **Checked in X-Plane 12** (12.4.4 and 12.4.3), not only in the test suite: the instancing rules, light intensities, conditions, seasons and `library.txt`, and the later export fixes ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)).
+
+**Still outstanding:**
+- **Needs a decision:** [#701](https://github.com/X-Plane/XPlane2Blender/issues/701) (a parent's `ATTR_light_level`), [#461](https://github.com/X-Plane/XPlane2Blender/issues/461) (`GLOBAL_specular` with normal maps), [#576](https://github.com/X-Plane/XPlane2Blender/issues/576) (`NEG_DIR_MAG`), `none` for custom spills without a dataref, and `ELSE` / `ELSE IF` for [#284](https://github.com/X-Plane/XPlane2Blender/issues/284). Findings and options are in [section 4](#needs-your-decision).
+- **Not started:** [#497](https://github.com/X-Plane/XPlane2Blender/issues/497) (unused bone Weight; upstream decided to remove it), [#746](https://github.com/X-Plane/XPlane2Blender/issues/746) and [#338](https://github.com/X-Plane/XPlane2Blender/issues/338) (packaging as a Blender Extension).
+- **46 feature requests** (appendix, section D), and about 80 open issues that don't apply to 5.0 (appendix, section E).
+- **Pull requests not adopted:** [#714](https://github.com/X-Plane/XPlane2Blender/pull/714) and [#681](https://github.com/X-Plane/XPlane2Blender/pull/681), both for the experimental importer, which isn't in 5.0.
+- **Untested in X-Plane:** whether seasons are reversed at southern temperate latitudes (no such scenery was installed), and `IF NOT SCENERY_SHADOWS` with scenery shadows turned off in the graphics settings.
 
 ---
 
@@ -143,26 +169,27 @@ All 9 pull requests open on X-Plane/XPlane2Blender in October 2026 were reviewed
 
 ### Needs your decision
 
-Checked in X-Plane 12.4.4 ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)). None is a bug; each is a choice.
+Checked in X-Plane 12.4.4 ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)), except #701, which was investigated in the code. Each is a choice rather than a clear bug.
 
 | Item | What was found | Options | Recommendation |
 |---|---|---|---|
 | [#461](https://github.com/X-Plane/XPlane2Blender/issues/461) Always write `GLOBAL_specular 1.0` with a normal map | In X-Plane 12.4.4 a normal map makes a surface clearly more reflective; `GLOBAL_specular` 0 → 1.0 changes it only a little. XPlane2Blender writes the material's Specular (0.5 by default). The OBJ8 spec still advises 1.0 with normal maps. | (a) Force 1.0 when there's a normal map (**changes output** of every normal-mapped OBJ, slightly); (b) keep using the material's Specular, which is now visible in the X-Plane material panel | (b): the effect is small and artists can set 1.0 themselves. |
 | [#576](https://github.com/X-Plane/XPlane2Blender/issues/576) `NEG_DIR_MAG` light optimisation | An optimisation for one light aimed exactly down −X: write a negative magnitude instead of an extra 180° rotation. The current output is correct, just one animation longer. The issue's author called it "a very minor case". | (a) Implement (needs changes to the lights.txt parser and its own copy of lights.txt); (b) close | (b). |
 | (no issue) Custom spill without a dataref: write `none` | XPlane2Blender writes nothing in the dataref position; the OBJ8 spec says `none`. In X-Plane 12.4.4 both give identical light. | (a) Write `none` to match the spec (**changes output** of those lines only); (b) leave as is | (a) is harmless and matches the spec, but not needed. |
+| [#701](https://github.com/X-Plane/XPlane2Blender/issues/701) REGRESSION: a parent's custom `ATTR_light_level` is reset for each child | XPlane2Blender 4.0 let a custom `ATTR_light_level` on a parent cover its children; 4.2 and later write `ATTR_light_level_reset` before each child mesh, so it has no effect. Cause: every material that doesn't set a light level itself asks for the reset (`xplane_material.py`), and the command writer then undoes the parent's attribute. | (a) Don't write the reset for materials that don't use light level (**changes output**; the resets at LOD boundaries from #763 must keep working); (b) leave as is, and set the light level on the materials instead | (a), with tests of both cases, if 4.0's behaviour is wanted; it's the reporter's expectation and Ben Supnik's summary in the issue. |
+| [#284](https://github.com/X-Plane/XPlane2Blender/issues/284) `ELSE` / `ELSE IF` conditions | X-Plane 12.4.4 accepts `ELSE`, `ELSE IF` and `ELSE IF NOT`; XPlane2Blender writes only `IF` / `IF NOT` ... `ENDIF`. None of 24,714 OBJs in an X-Plane 12 install with add-on scenery uses them. | (a) Add them, e.g. as an "Else" object linked to its condition (UI design work); (b) leave for the future, documented in the README | (b): two objects with opposite conditions do the same today. |
 
-### Still open
+### Still open, not started
 
 | Issue | Title | Reported by | State | Effect of fixing it |
 |---|---|---|---|---|
-| [#701](https://github.com/X-Plane/XPlane2Blender/issues/701) | REGRESSION: ATTR_light_level directive in custom attributes is reset in newer exporter | [@GlidingKiwi](https://github.com/GlidingKiwi) | **Investigated, left open for a decision.** Each child mesh's material, when it doesn't set a light level itself, asks for `ATTR_light_level_reset`, which undoes the parent's custom attribute. | Skipping that reset for materials that don't use light level would let a parent's custom `ATTR_light_level` cover its children, as in 4.0. It **changes output**, and must keep the resets at LOD boundaries (#763) working. |
 | [#497](https://github.com/X-Plane/XPlane2Blender/issues/497) | Bone weight appears to be unused | [@tngreene](https://github.com/tngreene) | Not started | The bone panel's weight setting would affect draw order, or be removed from the UI. |
 | [#746](https://github.com/X-Plane/XPlane2Blender/issues/746) and [#338](https://github.com/X-Plane/XPlane2Blender/issues/338) | Error adding extension / plugin into Blender 4.4 / Remove relative imports and circular dependencies | [@GitDaBytes](https://github.com/GitDaBytes), [@tngreene](https://github.com/tngreene) | Not started | Packaging as a Blender *Extension* (`blender_manifest.toml`, relative imports). 5.0 installs fine as a regular add-on with *Install from Disk* on Blender 5.2; this was verified. |
 ---
 
 ## 5. Other changes made for 5.0
 
-These were found by running the upstream test suite and the UI on Blender 5.2.2. None has an upstream issue.
+These were found by running the upstream test suite and the UI on Blender 5.2.2, or were added for testing. None has an upstream issue.
 
 | Change | Commit | Effect |
 |---|---|---|
@@ -171,6 +198,8 @@ These were found by running the upstream test suite and the UI on Blender 5.2.2.
 | **Bundled `lights.txt` updated to X-Plane 12.4.4's** (build 124414, `Resources/bitmaps/world/lites/lights.txt`, converted to LF line endings) | [`c578fdc`](https://github.com/LucienMP/XPlane2Blender/commit/c578fdc927f1b7492bd59c9f6b3a68700bcbc1bc) | The add-on uses this copy to validate light names and fill in parameters. The previous copy was older than X-Plane 12.4: it lacked 13 lights (`garden_bollard` and the `inset_edge_lirl`/`mirl` and `inset_thresh_lirl`/`mirl` runway inset lights), so they gave "unknown light" warnings. Laminar also retuned existing lights, e.g. taillight intensities and directions. All exporter tests pass with it unchanged; only the parser test's light count changed (479 → 492). Update it again from a newer X-Plane the same way. |
 | Python 3.12+ cleanups | [`5688f8d`](https://github.com/LucienMP/XPlane2Blender/commit/5688f8d90722106a40a28274fa4cb97b5118f0ba), [`6df3b20`](https://github.com/LucienMP/XPlane2Blender/commit/6df3b203c1705e526035b1095fafdb6c23b3a940) | Removes invalid-escape `SyntaxWarning`s and a `return` inside `finally`. The test suite no longer uses the removed `assertEquals` or the renamed `bpy_types` module. |
 | Version 5.0.0-beta.1 | [`e48d4e2`](https://github.com/LucienMP/XPlane2Blender/commit/e48d4e296948c57ee1c3c81dcf852696f2614d26) | Requires Blender 5.0+ (`bl_info`). Data model version 124. README updated, and the bug tracker points to this fork. |
+| **X-Plane 12 test tool**, `tools/xplane12_instancing_test` | [`6fc3b41`](https://github.com/LucienMP/XPlane2Blender/commit/6fc3b418eb055d319d2ab00649d5717a78926e78), [`bac34d7`](https://github.com/LucienMP/XPlane2Blender/commit/bac34d7e7158c7bf115ee4a94e66b10a7336b119), [`0267f3c`](https://github.com/LucienMP/XPlane2Blender/commit/0267f3cbeae90c19df9b84be4c30321cbfd50f62) | Runs checks in X-Plane itself: installs a test scenery pack and plugin, starts X-Plane and a flight through its Web API, records datarefs and screenshots, quits (force-closing it at a stuck quit dialog), and restores X-Plane's settings afterwards. It measured instancing with 10,000 copies, compared lights and conditions side by side, tested seasons, and loaded XPlane2Blender's own exports for the fixes above. Its README has every result. |
+| Test helper: `XP2B_TEST_OUTPUT_DIR` | [`65c6595`](https://github.com/LucienMP/XPlane2Blender/commit/65c65957841642d0663127778e538ccdbf7b063d) | When set, every test that compares against a fixture also saves its output there. Used to prove #709 and #439 changed nothing they shouldn't (every changed output was compared triangle by triangle, and shininess at every `TRIS`), and to regenerate the one fixture #709 changed. |
 
 ### New: publishing OBJs in `library.txt`
 
@@ -193,7 +222,7 @@ No upstream issue asks for this; it was added for X-Plane 12's seasonal objects 
 - **X-Plane 12.4.4, visual checks:** side-by-side night and day scenes for #755, #284, #461, #621 and custom spill lights, including XPlane2Blender's own exports before and after the custom spill fix ([tool and results](https://github.com/LucienMP/XPlane2Blender/tree/master/tools/xplane12_instancing_test)).
 - **X-Plane 12.4.4 and 12.4.3, seasons and `library.txt`:** `EXPORT_SEASON` at 47°N across the year, in the tropics, and with a mid-flight date change; XPlane2Blender's own seasonal exports and `library.txt` end to end, including a season left out; and its `SCENERY_SHADOWS` conditions. Southern temperate latitudes weren't tested: no base scenery for them was installed.
 - **X-Plane 12.4.3, checks of the later fixes:** XPlane2Blender's exports for #730 (selective and additive LODs, and the old behaviour), bone Show/Hide (#643), shared vertices (#709, against the unoptimized export), and `ATTR_shiny_rat 0` against none (#439). Also that X-Plane draws every additive LOD in range. For #709 and #439 every changed test output was also compared line by line: the drawn triangles and the shininess at each `TRIS` are unchanged.
-- **Not tested:** any Blender version other than 5.2, and loading most exported OBJs in X-Plane (outputs are checked against the upstream test fixtures; the X-Plane checks above cover specific features).
+- **Not tested:** any Blender version other than 5.2; loading most exported OBJs in X-Plane (outputs are checked against the upstream test fixtures; the X-Plane checks above cover specific features); seasons at southern temperate latitudes; and `IF NOT SCENERY_SHADOWS` with scenery shadows off in the graphics settings (turning them off through an art control removed the shadows, but the condition didn't change, so the result was inconclusive).
 
 ---
 
