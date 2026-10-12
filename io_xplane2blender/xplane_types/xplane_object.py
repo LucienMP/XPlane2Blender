@@ -133,7 +133,7 @@ class XPlaneObject:
                 name = "ANIM_" + dataref.anim_type
                 value = (dataref.show_hide_v1, dataref.show_hide_v2, dataref.path)
                 self.animAttributes.add(XPlaneAttribute(XPlaneAttributeName(name, dataref_index + 1), value))
-                if dataref.loop > 0:
+                if dataref.loop != 0:
                     self.animAttributes.add(XPlaneAttribute(XPlaneAttributeName("ANIM_keyframe_loop", dataref_index + 1), dataref.loop))
                     
     def collectConditions(self):

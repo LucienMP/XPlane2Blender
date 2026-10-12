@@ -63,7 +63,11 @@ def createFilesFromBlenderRootObjects(
     view_layer is needed to test exportability
     """
     xplane_files: List["XPlaneFile"] = []
-    
+
+    # A failed export (an exception while collecting) used to leave the cache
+    # behind, so the next export used the keyframes from before the user's edits
+    _all_keyframe_infos.clear()
+
     if only_selected_roots:
         potential_roots = [ob for ob in scene.objects if ob.select_get()]
     else:
@@ -187,14 +191,15 @@ def _pre_scan_all_keyframes():
     else:
         scene_keyframe_infos = collections.defaultdict(dict)
 
-    # A set of all keyframes that could have data we care about
+    # A set of all keyframes that could have data we care about. A keyframe on a
+    # fractional frame (after scaling keys in the Dope Sheet) is read at the nearest
+    # whole frame, as XPlaneKeyframe does; it used to be skipped and get frame 1's pose
     frames_to_visit = sorted(
         {
-            int(kf.co[0])
+            round(kf.co[0])
             for action in bpy.data.actions
             for fcurve in iter_all_action_fcurves(action)
             for kf in fcurve.keyframe_points
-            if kf.co[0].is_integer()
         }
     )
 
@@ -242,6 +247,9 @@ class XPlaneFile:
         self.commands = XPlaneCommands(self)
         self.filename = filename
         self.options = options
+        # The absolute folder the OBJ is written to, set by the export operator.
+        # Resource paths in the header are made relative to it
+        self.export_dir: Optional[str] = None
 
         self.lights = XPlaneVLights()
         self.mesh = XPlaneMesh()
@@ -989,7 +997,14 @@ class XPlaneFile:
             unassigned = [
                 obj
                 for obj in self.get_xplane_objects()
-                if isinstance(obj, (XPlanePrimitive, XPlaneLight))
+                if (
+                    isinstance(obj, (XPlanePrimitive, XPlaneLight))
+                    or (
+                        isinstance(obj, xplane_empty.XPlaneEmpty)
+                        and obj.blenderObject.xplane.special_empty_props.special_type
+                        != xplane_constants.EMPTY_USAGE_NONE
+                    )
+                )
                 and not obj.export_animation_only
                 and not obj.lod_assigned
             ]

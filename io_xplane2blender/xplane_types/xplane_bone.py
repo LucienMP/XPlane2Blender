@@ -217,34 +217,30 @@ class XPlaneBone:
         try:
             if bone:
                 # bone animation data resides in the armature objects .data block
-                fcurves = [
-                    f
-                    for f in get_action_fcurves(blenderObject.data.animation_data)
-                    if f.data_path.startswith(f'bones["{bone.name}"].xplane.datarefs')
-                ]
+                prefix = f'bones["{bone.name}"].xplane.datarefs['
+                all_fcurves = get_action_fcurves(blenderObject.data.animation_data)
             else:
-                fcurves = [
-                    f
-                    for f in get_action_fcurves(blenderObject.animation_data)
-                    if f.data_path.startswith(f"xplane.datarefs")
-                ]
+                prefix = "xplane.datarefs["
+                all_fcurves = get_action_fcurves(blenderObject.animation_data)
         except AttributeError:
             pass
         else:
-            for fcurve in fcurves:
-                if bone:
-                    index = int(
-                        fcurve.data_path[
-                            len(f'bones["{bone.name}"].xplane.datarefs[') : -len(
-                                "].value"
-                            )
-                        ]
-                    )
+            # Only a dataref's Value animates it. Its other fields (loop, show/hide
+            # values) can be keyframed too; those used to be read as a value and crash
+            fcurves = []
+            for fcurve in all_fcurves:
+                if not fcurve.data_path.startswith(prefix):
+                    continue
+                index_str, _, field = fcurve.data_path[len(prefix) :].partition("]")
+                if field == ".value" and index_str.isdigit():
+                    fcurves.append((int(index_str), fcurve))
                 else:
-                    index = int(
-                        fcurve.data_path[len("xplane.datarefs[") : -len("].value")]
+                    logger.warn(
+                        f"{self.getName()}: keyframes on '{fcurve.data_path}' are ignored,"
+                        " only a dataref's Value animates it"
                     )
 
+            for index, fcurve in fcurves:
                 try:
                     if bone:
                         dataref = bone.xplane.datarefs[index].path
@@ -712,7 +708,7 @@ class XPlaneBone:
         o = ""
 
         if dataref in self.datarefs:
-            if self.datarefs[dataref].loop > 0:
+            if self.datarefs[dataref].loop != 0:
                 indent = self.getIndent()
                 o += f"{indent}\tANIM_keyframe_loop\t{self.datarefs[dataref].loop}\n"
         return o
@@ -884,7 +880,7 @@ class XPlaneBone:
                             (dataref.show_hide_v1, dataref.show_hide_v2, dataref.path),
                         )
                     )
-                    if dataref.loop > 0:
+                    if dataref.loop != 0:
                         attributes.add(
                             XPlaneAttribute(
                                 XPlaneAttributeName("ANIM_keyframe_loop", dataref_index + 1),

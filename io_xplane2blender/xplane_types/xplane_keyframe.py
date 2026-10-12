@@ -6,6 +6,7 @@ import mathutils
 
 from io_xplane2blender import xplane_helpers
 from io_xplane2blender.xplane_constants import PRECISION_KEYFRAME
+from io_xplane2blender.xplane_helpers import logger
 
 
 class XPlaneKeyframe:
@@ -30,7 +31,12 @@ class XPlaneKeyframe:
         else:
             blenderObject = xplaneBone.blenderObject
 
-        self.frame_num = int(keyframe.co[0])
+        self.frame_num = round(keyframe.co[0])
+        if not float(keyframe.co[0]).is_integer():
+            logger.warn(
+                f"{xplaneBone.getName()}: keyframe at frame {keyframe.co[0]} isn't on a"
+                f" whole frame, its position and rotation are read at frame {self.frame_num}"
+            )
         try:
             key = (
                 xplaneBone.blenderObject.name,
