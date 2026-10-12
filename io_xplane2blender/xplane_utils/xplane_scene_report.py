@@ -183,9 +183,18 @@ def collect_manipulators(
         }
 
         if t in (
-            MANIP_DRAG_XY,
             MANIP_DRAG_AXIS,
             MANIP_DRAG_AXIS_PIX,
+            MANIP_AXIS_KNOB,
+            MANIP_AXIS_SWITCH_UP_DOWN,
+            MANIP_AXIS_SWITCH_LEFT_RIGHT,
+        ):
+            # These write v1/v2 (ATTR_manip_drag_axis ... v1 v2 dataref), not v1_min/v1_max
+            row["Dataref 1"] = manip.dataref1
+            row["Dataref 1 Min"] = manip.v1
+            row["Dataref 1 Max"] = manip.v2
+        elif t in (
+            MANIP_DRAG_XY,
             MANIP_DRAG_AXIS_DETENT,
             MANIP_DRAG_ROTATE,
             MANIP_DRAG_ROTATE_DETENT,
@@ -194,6 +203,11 @@ def collect_manipulators(
             row["Dataref 1 Min"] = manip.v1_min
             row["Dataref 1 Max"] = manip.v1_max
             if t == MANIP_DRAG_XY:
+                row["Dataref 2"] = manip.dataref2
+                row["Dataref 2 Min"] = manip.v2_min
+                row["Dataref 2 Max"] = manip.v2_max
+            elif t in (MANIP_DRAG_AXIS_DETENT, MANIP_DRAG_ROTATE_DETENT):
+                # The detent axis's dataref
                 row["Dataref 2"] = manip.dataref2
                 row["Dataref 2 Min"] = manip.v2_min
                 row["Dataref 2 Max"] = manip.v2_max

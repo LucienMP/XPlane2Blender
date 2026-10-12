@@ -49,25 +49,28 @@ _commands_txt_content = {}  # type: Dict[str,List[CommandInfoStruct]]
 
 def parse_commands_txt(filepath: str) -> Union[List[CommandInfoStruct], str]:
     try:
-        with open(filepath) as commands_file:
+        # Like DataRefs.txt (#725): a file in another encoding must not fail entirely
+        with open(filepath, encoding="utf-8", errors="replace") as commands_file:
             file_contents = []  # type: List[CommandInfoStruct]
             last_error = ""
             for i, line in enumerate(commands_file, start=1):
-                if line == "\n":
+                line = line.rstrip("\r\n")
+                if line == "":
                     continue
                 elif line.startswith((" ", "\t")):
                     last_error = (
                         "Line {} cannot start with whitespace or be empty".format(i)
                     )
                     break
-                elif line[-2].endswith((" ", "\t")):
+                elif line.endswith((" ", "\t")):
                     last_error = "Line {} cannot end with whitespace".format(i)
                     break
 
-                match = re.match(r"^(\S+)\s+([\S ]*)", line)
+                # The description is optional
+                match = re.fullmatch(r"(\S+)(?:\s+([\S ]*))?", line)
                 if match:
                     file_contents.append(
-                        CommandInfoStruct(match.group(1), match.group(2))
+                        CommandInfoStruct(match.group(1), match.group(2) or "")
                     )
                 else:
                     last_error = "Text {} on line {} is not a valid command".format(
@@ -85,7 +88,8 @@ def parse_commands_txt(filepath: str) -> Union[List[CommandInfoStruct], str]:
                 return _commands_txt_content[filepath]
 
     except Exception as e:
-        return e.args[1]
+        # OSError has strerror; anything else used to raise again here
+        return getattr(e, "strerror", None) or str(e)
 
 
 def get_commands_txt_file_content(filepath: str) -> Union[List[CommandInfoStruct], str]:

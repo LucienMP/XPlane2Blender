@@ -100,7 +100,7 @@ def parse_datarefs_txt(filepath: str) -> Union[List[DatarefInfoStruct], str]:
         return "..." + os.path.sep.join(pathlib.Path(filepath).parts[-3:])
 
     try:
-        with open(filepath, encoding="utf-8", errors="replace") as dref_file:
+        with open(filepath, encoding="utf-8-sig", errors="replace") as dref_file:
             file_contents = []
             for i, line in enumerate(dref_file):
                 if i == 0:
@@ -120,8 +120,11 @@ def parse_datarefs_txt(filepath: str) -> Union[List[DatarefInfoStruct], str]:
                     else:
                         return "Does not have a blank line for its second line"
 
+                if not line.strip():
+                    # A blank line, like the one after the header, separates nothing
+                    continue
                 if re.match(r"^\s+", line):
-                    return "Line {} cannot start with whitespace".format(i)
+                    return "Line {} cannot start with whitespace".format(i + 1)
 
                 segments = [
                     segment.strip()
