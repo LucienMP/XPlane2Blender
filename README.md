@@ -10,6 +10,7 @@ This addon for Blender makes it possible to export models made in Blender to the
 ## What's new in 5.0
 Blender 5.x support:
 - Animation export works with Blender 5's slotted (layered) Actions (#765), including bone dataref animations that live in the Armature's slot. On Blender 4.4/4.5 these bone animations were previously not exported either.
+- One Action can animate several objects, each through its own slot: each object exports only its own slot's animation. An Action assigned with none of its slots chosen animates nothing, so the export now warns instead of silently leaving the animation out.
 - Older .blend files update correctly. Blender 5 hides add-on properties from the old dictionary-style access the updater used.
 - Wiper gradient baking works with current Cycles.
 - The bundled `lights.txt` is X-Plane 12.4.4's, so the 13 lights added since (such as the new runway inset lights) are recognised.
