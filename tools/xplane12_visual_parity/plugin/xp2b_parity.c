@@ -135,6 +135,9 @@ static int setup_scene(void)
     } else {
         logf_("terrain probe missed, using the aircraft's height", NULL);
     }
+    /* Above the terrain, so that sloping ground doesn't come up through the booth floor
+     * away from the origin; the views are relative to the origin, so height doesn't matter */
+    g_py += 1.0;
     XPLMDestroyProbe(probe);
     logn("model x:", g_px);
     logn("model y:", g_py);

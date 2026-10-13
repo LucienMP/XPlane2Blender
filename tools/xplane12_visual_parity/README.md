@@ -43,12 +43,14 @@ pictures, which shows a field-of-view or scale mismatch directly.
   Show/Hide applied in X-Plane's order) and renders each view. `compare` does the
   classification and writes `report.txt` and `diff_<view>.png` (disagreements in red).
 - `plugin/xp2b_parity.c`: once armed and the scenery has loaded, loads the booth and the
-  model with the Instance API 40 m ahead of the aircraft on the probed terrain (no DSF or
-  library needed), feeds the model the dataref values in `DATAREFS`, sets the field of
+  model with the Instance API 40 m ahead of the aircraft, 1 m above the probed terrain so
+  that sloping ground doesn't come up through the booth floor (no DSF or library needed), feeds the model the dataref values in `DATAREFS`, sets the field of
   view, takes the camera with `XPLMControlCamera` through the views in `VIEWS`,
   screenshots each (20 s first for auto exposure, then 4 s each) and quits X-Plane.
 - `parity.py`: the driver. Starts X-Plane, starts a midnight flight at Shelton, WA
-  (KSHN) through the Web API, collects the screenshots, then renders and compares.
+  (KSHN) through the Web API, checks that the Cessna is what X-Plane loaded (an X-Plane
+  set to start a new flight at launch can replace the requested one, and asks again if
+  not), collects the screenshots, then renders and compares.
   During the run every other plugin folder in `Resources/plugins` is renamed into
   `Resources/plugins_aside_xp2b` (same drive, so nothing is copied) and renamed back
   afterwards (also by `install`, `cleanup` and the next run),
@@ -81,6 +83,16 @@ Results go in `work/<name>/`: `model.obj`, `blender_<view>.png`, `xplane_<view>.
 `diff_<view>.png`, `report.txt`, the plugin's log and X-Plane's Log.txt. `--skip-xplane`
 re-renders and compares with the screenshots already there, for working on the Blender
 side. `--views` picks another views file. A run takes about three minutes.
+
+## Results on the sample (X-Plane 12.4.3, 13 October 2026)
+
+All six views pass: every colour's intersection-over-union is 1.000 and, in the front,
+left and top views, the model's pixel extent in X-Plane is identical to Blender's to the
+pixel (567 x 329 px at the same centre), which also confirms the camera placement and
+that X-Plane's field-of-view angle is the horizontal one. The run takes about three
+minutes. On the way there the test found a real defect: the first sample's top and
+bottom faces were wound inside out, which Blender's two-sided Workbench draws and
+X-Plane culls, so the top view showed the floor where the faces should be.
 
 ## What a model must look like
 
