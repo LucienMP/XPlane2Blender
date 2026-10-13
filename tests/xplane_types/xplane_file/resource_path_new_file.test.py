@@ -22,7 +22,10 @@ class TestResourcePathNewFile(XPlaneTestCase):
         col = test_creation_helpers.create_datablock_collection("cwd_1_and_2")
         col.xplane.is_exportable_collection = True
         col.xplane.layer.name = filename + ".obj"
-        col.xplane.layer.texture = "C:/tex.png"
+        # An absolute path on the drive the OBJ goes to: a path can't be made relative
+        # across drives, and CI checks the repository out on D:
+        texture = os.path.splitdrive(os.path.abspath(get_tmp_folder()))[0] + "/tex.png"
+        col.xplane.layer.texture = texture
 
         cube = test_creation_helpers.create_datablock_mesh(
             test_creation_helpers.DatablockInfo(
@@ -37,7 +40,11 @@ class TestResourcePathNewFile(XPlaneTestCase):
             .splitlines()
         )
 
-        self.assertTrue(lines[5].split()[1], "../../../../../../tex.png")
+        # This used to be assertTrue(value, message), which passes for any value
+        texture_line = next(l for l in lines if l.startswith("TEXTURE\t"))
+        expected = os.path.relpath(texture, get_tmp_folder()).replace("\\", "/")
+        self.assertEqual(texture_line.split()[1], expected)
+        self.assertTrue(expected.endswith("../tex.png"), expected)
 
 
 runTestCases([TestResourcePathNewFile])
