@@ -728,6 +728,26 @@ class XPlaneBone:
         totalTrans = 0
         indent = self.getIndent()
 
+        # Every key gives the same offset, as happens with a second dataref on a bone
+        # that another dataref moves: a static ANIM_trans does the same, with no
+        # dataref for X-Plane to evaluate (#253, #653)
+        if self._static_translation(keyframes):
+            location = keyframes[0].location
+            if sum(map(abs, location)) == 0:
+                return ""
+            if debug:
+                o += f"{indent}# translation keyframes of {dataref}, all the same\n"
+            # + 0.0 turns a -0.0 into 0.0
+            xyz = "\t".join(
+                floatToStr(component + 0.0)
+                for component in (
+                    location[0] * pre_scale[0],
+                    location[2] * pre_scale[2],
+                    -location[1] * pre_scale[1],
+                )
+            )
+            return o + f"{indent}ANIM_trans\t{xyz}\t{xyz}\n"
+
         if debug:
             o += f"{indent}# translation keyframes\n"
 
@@ -770,6 +790,11 @@ class XPlaneBone:
             refAxis = axes[0]
 
         tab = "\t"
+        degrees = [math.degrees(keyframe.rotation[0]) for keyframe in keyframes]
+        static = self._static_rotation(dataref, vec_b_to_x(refAxis), degrees)
+        if static is not None:
+            return static
+
         o += (
             f"{indent}ANIM_rotate_begin"
             f"\t{tab.join(map(floatToStr, vec_b_to_x(refAxis)))}"
@@ -809,6 +834,13 @@ class XPlaneBone:
             totalAxisRot = 0
 
             tab = "\t"
+            degrees = [math.degrees(keyframe.rotation[order]) for keyframe in keyframes]
+            static = self._static_rotation(dataref, vec_b_to_x(axis), degrees)
+            if static is not None:
+                o += static
+                totalRot += sum(map(abs, degrees))
+                continue
+
             ao += (
                 f"{indent}ANIM_rotate_begin"
                 f"\t{tab.join(map(floatToStr, vec_b_to_x(axis)))}"
@@ -833,6 +865,37 @@ class XPlaneBone:
             return ""
 
         return o
+
+    @staticmethod
+    def _static_translation(keyframes) -> bool:
+        """True when every keyframe's location is the same (they're already rounded)"""
+        return all(keyframe.location == keyframes[0].location for keyframe in keyframes)
+
+    def _static_rotation(
+        self, dataref: str, axis_x: mathutils.Vector, degrees: List[float]
+    ) -> Optional[str]:
+        """
+        The static ANIM_rotate replacing a keyframe table whose keys all give the same
+        angle, "" when that angle is 0, or None when the table really animates (#253, #562).
+        axis_x is the rotation axis in X-Plane coordinates
+        """
+        rounded = {round(deg, xplane_constants.PRECISION_KEYFRAME) for deg in degrees}
+        if len(rounded) != 1:
+            return None
+        if rounded.pop() == 0:
+            return ""
+        deg = degrees[0]
+        indent = self.getIndent()
+        o = ""
+        if getDebug():
+            o += f"{indent}# rotation keyframes of {dataref}, all the same\n"
+        tab = "\t"
+        # + 0.0 turns a -0.0 into 0.0
+        return o + (
+            f"{indent}ANIM_rotate"
+            f"\t{tab.join(floatToStr(component + 0.0) for component in axis_x)}"
+            f"\t{tab.join(map(floatToStr, [deg, deg]))}\n"
+        )
 
     def _writeRotationKeyframes(self, dataref) -> str:
         debug = getDebug()
