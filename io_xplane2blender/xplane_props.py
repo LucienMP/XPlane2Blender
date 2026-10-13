@@ -444,6 +444,9 @@ class XPlaneDatarefSearchWindow(bpy.types.PropertyGroup):
             xplane.dataref_search_window_state.dataref_search_list_idx
         )
         path = datarefs_search_list[datarefs_search_list_idx].dataref_path
+        # An array dataref needs an element, so start with [0] to be edited (#68, #345)
+        if "[" in datarefs_search_list[datarefs_search_list_idx].dataref_type:
+            path += "[0]"
         assert (
             dataref_prop_dest != ""
         ), "should not be able to click button when search window is supposed to be closed"

@@ -536,6 +536,11 @@ class XPlaneHeader:
                             logger.error(
                                 f"{filename}'s Thermal Source #{i - 1} has no on/off dataref"
                             )
+                        else:
+                            self.xplaneFile.checkDataref(
+                                thermal_source.dataref_on_off,
+                                f"{filename}'s Thermal Source #{i - 1}",
+                            )
 
                         if self.attributes["THERMAL_source2"].getValue() == None:
                             self.attributes["THERMAL_source2"].removeValues()
@@ -568,6 +573,10 @@ class XPlaneHeader:
                         wiper = getattr(rain_props, f"wiper_{i}")
                         if not wiper.dataref:
                             logger.error(f"{filename}'s Wiper #{i} has no dataref")
+                        else:
+                            self.xplaneFile.checkDataref(
+                                wiper.dataref, f"{filename}'s Wiper #{i}"
+                            )
 
                         if wiper.start >= wiper.end:
                             logger.error(

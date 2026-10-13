@@ -16,6 +16,14 @@ from .xplane_ops import *
 from .xplane_ops import _get_active_root
 from .xplane_props import *
 from .xplane_helpers import is_path_decal_lib
+from .xplane_utils import xplane_dataref_validation
+
+
+def dataref_problem_layout(layout: bpy.types.UILayout, path: str) -> None:
+    """Shows what's wrong with a dataref path under its field, if anything (#344, #68)"""
+    problem = xplane_dataref_validation.dataref_problem(path)
+    if problem:
+        layout.row().label(text=f"Dataref {problem}", icon="ERROR")
 
 
 class DATA_PT_xplane(bpy.types.Panel):
@@ -170,6 +178,7 @@ def light_level_layout(
         # Finally, in the next row, if we are expanded, build the entire search list.
         if expanded:
             dataref_search_window_layout(box)
+        dataref_problem_layout(box, prop_group_w_ll.xplane.lightLevel_dataref)
 
     ll_box_column.row()
 
@@ -1132,6 +1141,7 @@ def light_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
         # Finally, in the next row, if we are expanded, build the entire search list.
         if expanded:
             dataref_search_window_layout(layout)
+        dataref_problem_layout(layout, light_data.xplane.dataref)
 
     layout.row().prop(light_data.xplane, "type")
 
@@ -1522,6 +1532,7 @@ def animation_layout(
         # Finally, in the next row, if we are expanded, build the entire search list.
         if expanded:
             dataref_search_window_layout(subbox)
+        dataref_problem_layout(subbox, attr.path)
 
         subrow = subbox.row()
         subrow.prop(attr, "anim_type")
@@ -1744,6 +1755,7 @@ def manipulator_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> Non
             # Finally, in the next row, if we are expanded, build the entire search list.
             if expanded:
                 dataref_search_window_layout(box)
+            dataref_problem_layout(box, getattr(obj.xplane.manip, dataref_prop_name))
 
         MANIPULATORS_AXIS = {
             MANIP_DRAG_XY,

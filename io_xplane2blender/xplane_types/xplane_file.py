@@ -28,6 +28,7 @@ from io_xplane2blender.xplane_types import (
     xplane_material,
     xplane_material_utils,
 )
+from io_xplane2blender.xplane_utils import xplane_dataref_validation
 
 from ..xplane_helpers import (
     BlenderParentType,
@@ -265,6 +266,8 @@ class XPlaneFile:
 
         # Datablocks already warned about for an Action with no slot assigned
         self.warned_missing_slot: Set[str] = set()
+        # Dataref paths already warned about, see checkDataref
+        self.warned_datarefs: Set[str] = set()
 
         # LOD buckets for objects in none, set when writing LODs (#730)
         self._lod_fallback: Tuple[bool, bool, bool, bool] = (False,) * 4
@@ -738,6 +741,68 @@ class XPlaneFile:
                 " Remove the animation, or export it as a Scenery Object."
             )
 
+    def checkDataref(self, path: str, where: str) -> None:
+        """
+        Warns, once per OBJ and path, about a dataref that can't work as written:
+        misspelt sim/ datarefs, arrays used without an element, and the like (#344, #68)
+        """
+        problem = xplane_dataref_validation.dataref_problem(path)
+        if problem and path not in self.warned_datarefs:
+            self.warned_datarefs.add(path)
+            logger.warn(f"{where}: dataref '{path.strip()}' {problem}")
+
+    def validateDatarefs(self) -> None:
+        """Checks every dataref the OBJ will use: animations, show/hide, lights, light levels and manipulators"""
+
+        def walk(bone: XPlaneBone):
+            yield bone
+            for child in bone.children:
+                yield from walk(child)
+
+        for bone in walk(self.rootBone):
+            if not bone.parent:
+                continue
+            where = bone.getName(ignore_indent_level=True)
+            for dataref in bone.animations:
+                self.checkDataref(dataref, where)
+            for name, attr in bone.getAnimAttributes().items():
+                if name.startswith(("ANIM_show", "ANIM_hide")):
+                    for value in attr.value:
+                        if isinstance(value, (tuple, list)) and len(value) == 3:
+                            self.checkDataref(value[2], where)
+
+            xplane_object = bone.xplaneObject
+            if not xplane_object or xplane_object.export_animation_only:
+                continue
+            if isinstance(xplane_object, XPlaneLight) and xplane_object.lightType in {
+                xplane_constants.LIGHT_CUSTOM,
+                xplane_constants.LIGHT_SPILL_CUSTOM,
+            }:
+                self.checkDataref(xplane_object.dataref, where)
+            # ATTR_light_level's value is (v1, v2, dataref[, brightness])
+            material = getattr(xplane_object, "material", None)
+            for attributes in (
+                xplane_object.attributes,
+                material.attributes if material else {},
+            ):
+                attr = attributes.get("ATTR_light_level")
+                for value in attr.value if attr else []:
+                    if isinstance(value, (tuple, list)) and len(value) >= 3:
+                        self.checkDataref(value[2], where)
+            manip = xplane_object.blenderObject.xplane.manip
+            if xplane_object.type == "MESH" and manip.enabled:
+                if manip.type in xplane_constants.MANIPULATORS_ALL - xplane_constants.MANIPULATORS_COMMAND - {
+                    xplane_constants.MANIP_NOOP,
+                    xplane_constants.MANIP_DEVICE,
+                }:
+                    self.checkDataref(manip.dataref1, where)
+                if manip.type in {
+                    xplane_constants.MANIP_DRAG_XY,
+                    xplane_constants.MANIP_DRAG_AXIS_DETENT,
+                    xplane_constants.MANIP_DRAG_ROTATE_DETENT,
+                }:
+                    self.checkDataref(manip.dataref2, where)
+
     def validateOptions(self) -> bool:
         if self.options.texture_normal and self.options.texture_map_normal:
             logger.error(f'"Normal / Specular" and "Normal" provided in "{self.options.name}", use only one.')
@@ -855,6 +920,7 @@ class XPlaneFile:
             return ""
 
         self.warnAnimatedInstancedObjects()
+        self.validateDatarefs()
 
         o = ""
         o += self.header.write()

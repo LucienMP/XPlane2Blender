@@ -200,6 +200,18 @@ def _get_all_manipulators():
 
 MANIPULATORS_ALL = {*_get_all_manipulators().values()}
 
+# Manipulators that run commands, so have no dataref fields
+MANIPULATORS_COMMAND = {
+    MANIP_COMMAND,
+    MANIP_COMMAND_AXIS,
+    MANIP_COMMAND_KNOB,
+    MANIP_COMMAND_SWITCH_LEFT_RIGHT,
+    MANIP_COMMAND_SWITCH_UP_DOWN,
+    MANIP_COMMAND_KNOB2,
+    MANIP_COMMAND_SWITCH_LEFT_RIGHT2,
+    MANIP_COMMAND_SWITCH_UP_DOWN2,
+}
+
 MANIP_CURSOR_FOUR_ARROWS = "four_arrows"
 MANIP_CURSOR_HAND = "hand"
 MANIP_CURSOR_BUTTON = "button"

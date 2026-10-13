@@ -79,6 +79,19 @@ class TestDatarefTxtParser(XPlaneTestCase):
         #print(result)
         self.assertTrue("File has no datarefs in it" in result)
 
+    def test_DataRefs_multidimensional_arrays(self):
+        """X-Plane 12.4's DataRefs.txt has float[56][10] and byte[] types; the SDK reads them flat"""
+        filepath = os.path.join(__dirname__,"test_datarefs_txts", inspect.stack()[0][3].replace("test_","") + ".txt")
+        result = xplane_datarefs_txt_parser.parse_datarefs_txt(filepath)
+        self.assertNotIsInstance(result, str, msg=str(result))
+        by_path = {info.path: info for info in result}
+        self.assertEqual(by_path["sim/type/flat"].array_size, 16)
+        self.assertEqual(by_path["sim/type/matrix"].array_size, 560)
+        self.assertEqual(by_path["sim/type/cube"].array_size, 192)
+        self.assertTrue(by_path["sim/type/text"].is_array_type)
+        self.assertEqual(by_path["sim/type/text"].array_size, 0)
+        self.assertFalse(by_path["sim/type/scalar"].is_array_type)
+
     def test_DataRefs_missing(self):
         result = xplane_datarefs_txt_parser.parse_datarefs_txt(os.path.join(__dirname__,"test_datarefs_txts","DataRefs_missing.txt"))
         #print(result)

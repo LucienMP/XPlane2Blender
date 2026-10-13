@@ -1,3 +1,4 @@
+import math
 import os
 import pathlib
 import re
@@ -7,7 +8,6 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from io_xplane2blender import xplane_helpers
-from io_xplane2blender.xplane_export import showLogDialog
 
 
 """
@@ -42,16 +42,18 @@ class DatarefInfoStruct:
         self.path = path
         self.type = type
         self.is_array_type = True if "[" in self.type and "]" in self.type else False
-        try:
-            if self.is_array_type:
-                # TODO: Potential for error here
-                self.array_size = int(
-                    self.type[self.type.find("[") + 1 : self.type.find("]")]
+        # X-Plane's SDK reads a multi-dimensional array such as float[56][10] as one flat
+        # array, so its size is the product. 0 when a size isn't given, as in byte[]
+        self.array_size = 0
+        if self.is_array_type:
+            try:
+                self.array_size = math.prod(
+                    int(dim) for dim in re.findall(r"\[(\d+)\]", self.type)
                 )
-            else:
+            except ValueError:
+                pass
+            if not re.fullmatch(r"\w+(\[\d+\])+", self.type):
                 self.array_size = 0
-        except:
-            self.array_size = 0
 
         self.is_writable = is_writable
         self.units = units if units else ""
@@ -71,7 +73,8 @@ class DatarefInfoStruct:
                     self.type
                 )
             else:
-                match = re.match(r"\[\d*\]", match.groups()[1])
+                # One or more dimensions, each digits or empty: int[24], float[56][10], byte[]
+                match = re.fullmatch(r"(\[\d*\])+", match.groups()[1])
                 if match is None:
                     return "Array index '{}' must be one or more digits".format(
                         self.type

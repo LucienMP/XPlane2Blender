@@ -1,0 +1,7 @@
+2 1100 Comment: multi-dimensional and unsized arrays, as in X-Plane 12.4 DataRefs.txt
+
+sim/type/flat	float[16]	y	ratio	Flat array
+sim/type/matrix	float[56][10]	y	degrees	Two dimensions
+sim/type/cube	float[16][4][3]	n	???	Three dimensions
+sim/type/text	byte[]	n	string	No size given
+sim/type/scalar	int	y	boolean	Not an array
