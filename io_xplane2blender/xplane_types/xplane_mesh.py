@@ -8,6 +8,7 @@ import bpy
 import mathutils
 
 from io_xplane2blender import xplane_helpers
+from io_xplane2blender.xplane_utils import xplane_vertex_cache
 
 from ..xplane_config import getDebug
 from ..xplane_constants import *
@@ -143,7 +144,9 @@ class XPlaneMesh:
                 # backwards through the mesh data structures. A mirrored mesh's loops
                 # are already clockwise (#747)
                 corner_order = (0, 1, 2) if mirrored else (2, 1, 0)
+                face_entries = []
                 for tmp_face in tmp_faces:
+                    entries = []
                     for i in corner_order:
                         index = tmp_face.indices[i]
                         vertex = xplane_helpers.vec_b_to_x(mesh.vertices[index].co)
@@ -151,8 +154,24 @@ class XPlaneMesh:
                         # faces, and carry custom normals, which tri.normal would drop
                         normal = xplane_helpers.vec_b_to_x(tmp_face.split_normals[i])
                         uv = tmp_face.uvs[i]
-                        vt_entry = tuple(vertex[:] + normal[:] + uv[:])
+                        entries.append(tuple(vertex[:] + normal[:] + uv[:]))
+                    face_entries.append(entries)
 
+                if bpy.context.scene.xplane.optimize:
+                    # With Optimize on, the triangles are ordered for the GPU's vertex
+                    # cache (#134): the same triangles, so the same picture, drawn with
+                    # fewer vertex shader runs. A vertex here is what the VT table will
+                    # hold, position + normal + UV, numbered in order of first use
+                    vertex_ids = {}
+                    triangles = [
+                        tuple(vertex_ids.setdefault(entry, len(vertex_ids)) for entry in entries)
+                        for entries in face_entries
+                    ]
+                    order = xplane_vertex_cache.optimize_triangle_order(triangles)
+                    face_entries = [face_entries[i] for i in order]
+
+                for entries in face_entries:
+                    for vt_entry in entries:
                         # Optimization Algorithm:
                         # Try to find a matching vt_entry's index in the mesh's index table
                         # If found, skip adding to global vertices list
