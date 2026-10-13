@@ -248,6 +248,10 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         ):
             breakpoint()
 
+        unit_scale_problem = xplane_helpers.unit_scale_problem(bpy.context.scene)
+        if unit_scale_problem:
+            logger.warn(unit_scale_problem)
+
         # store current frame as we will go back to it
         currentFrame = bpy.context.scene.frame_current
 

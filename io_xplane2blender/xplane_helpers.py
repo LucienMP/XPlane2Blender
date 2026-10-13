@@ -130,6 +130,21 @@ def resolveBlenderPath(path: str) -> str:
         return path
 
 
+def unit_scale_problem(scene: bpy.types.Scene) -> Optional[str]:
+    """
+    Why the scene's Unit Scale will surprise on export, or None (#466). OBJ
+    coordinates are Blender units read as metres; Unit Scale only changes what
+    Blender displays
+    """
+    unit_scale = scene.unit_settings.scale_length
+    if abs(unit_scale - 1.0) < 1e-6:
+        return None
+    return (
+        f"Unit Scale is {unit_scale:g}, not 1: a length Blender shows as 1 m exports"
+        f" as {1 / unit_scale:g} m. Set Scene > Units > Unit Scale to 1 and scale the model instead"
+    )
+
+
 def effective_normal_metalness(xp_file: "xplane_file.XPlaneFile") -> bool:
     return (
         int(bpy.context.scene.xplane.version) >= 1100

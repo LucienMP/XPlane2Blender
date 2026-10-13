@@ -346,6 +346,9 @@ def rain_layout(
 
 def scene_layout(layout: bpy.types.UILayout, scene: bpy.types.Scene):
     layout.row().operator("scene.export_to_relative_dir", icon="EXPORT")
+    unit_scale_problem = xplane_helpers.unit_scale_problem(scene)
+    if unit_scale_problem:
+        layout.row().label(text=unit_scale_problem, icon="ERROR")
     row = layout.row(align=True)
     row.operator("xplane.open_export_log", icon="TEXT")
     row.operator("xplane.select_log_objects", icon="RESTRICT_SELECT_OFF")
@@ -1554,7 +1557,18 @@ def animation_layout(
         paired_prop = current_dataref_prop_template.format(index=i)
 
         dataref_search_toggle_op.paired_dataref_prop = paired_prop
-        # Next: "X" box to nuke the dataref - further to the right to keep from separating search from its field.
+        # Next: arrows to reorder (Show/Hide apply in this order, #401), then the "X" box
+        # to nuke the dataref - further to the right to keep from separating search from its field.
+        move_idname = "bone.move_xplane_dataref" if is_bone else "object.move_xplane_dataref"
+        for direction, icon, enabled in (
+            ("UP", "TRIA_UP", i > 0),
+            ("DOWN", "TRIA_DOWN", i < len(obj.xplane.datarefs) - 1),
+        ):
+            arrow = subrow.row()
+            arrow.enabled = enabled
+            move_op = arrow.operator(move_idname, text="", emboss=False, icon=icon)
+            move_op.index = i
+            move_op.direction = direction
         if is_bone:
             subrow.operator(
                 "bone.remove_xplane_dataref", text="", emboss=False, icon="X"

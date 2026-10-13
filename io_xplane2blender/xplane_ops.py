@@ -79,6 +79,44 @@ def removeDatarefFCurves(
         fcurve.data_path = getDatarefValuePath(i - 1, bone)
 
 
+def swapDatarefFCurves(
+    anim_data: Optional[bpy.types.AnimData],
+    index_a: int,
+    index_b: int,
+    bone: Optional[bpy.types.Bone] = None,
+) -> None:
+    """
+    Swaps the FCurves of two XPlaneDatarefs that swapped places in their
+    collection, so each keeps its keyframes (#401)
+    """
+    fcurves = get_action_fcurves(anim_data)
+    path_a, path_b = getDatarefValuePath(index_a, bone), getDatarefValuePath(index_b, bone)
+    fcurve_a = findFCurveByPath(fcurves, path_a)
+    fcurve_b = findFCurveByPath(fcurves, path_b)
+    if fcurve_a:
+        fcurve_a.data_path = path_b
+    if fcurve_b:
+        fcurve_b.data_path = path_a
+
+
+def move_dataref(
+    datarefs, index: int, direction: str, anim_data, bone: Optional[bpy.types.Bone] = None
+) -> bool:
+    """Moves datarefs[index] one place "UP" or "DOWN" with its keyframes. False at the ends"""
+    other = index - 1 if direction == "UP" else index + 1
+    if not (0 <= index < len(datarefs) and 0 <= other < len(datarefs)):
+        return False
+    datarefs.move(index, other)
+    swapDatarefFCurves(anim_data, index, other, bone)
+    return True
+
+
+_MOVE_DIRECTIONS = [
+    ("UP", "Up", "Move the dataref up one place"),
+    ("DOWN", "Down", "Move the dataref down one place"),
+]
+
+
 # Function: getDatarefValuePath
 # Returns the data path for a <XPlaneDataref> value.
 #
@@ -335,6 +373,23 @@ class OBJECT_OT_remove_xplane_dataref(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class OBJECT_OT_move_xplane_dataref(bpy.types.Operator):
+    """Moves a dataref up or down the list. Show/Hide are written, and X-Plane applies them, in this order (#401)"""
+
+    bl_label = "Move Dataref"
+    bl_idname = "object.move_xplane_dataref"
+    bl_options = {"INTERNAL"}
+    bl_description = "Move the X-Plane Dataref up or down. Show/Hide apply in this order"
+
+    index: bpy.props.IntProperty()
+    direction: bpy.props.EnumProperty(items=_MOVE_DIRECTIONS, default="UP")
+
+    def execute(self, context):
+        obj = context.object
+        move_dataref(obj.xplane.datarefs, self.index, self.direction, obj.animation_data)
+        return {"FINISHED"}
+
+
 # Class: OBJECT_OT_add_xplane_dataref_keyframe
 # Adds a Keyframe to the value of a <XPlaneDataref> of an object.
 class OBJECT_OT_add_xplane_dataref_keyframe(bpy.types.Operator):
@@ -466,6 +521,31 @@ class BONE_OT_remove_xplane_dataref(bpy.types.Operator):
         # Bone dataref keyframes live on the Armature datablock, not the Object
         removeDatarefFCurves(armature.data.animation_data, self.index, bone)
 
+        return {"FINISHED"}
+
+
+class BONE_OT_move_xplane_dataref(bpy.types.Operator):
+    """Moves a bone's dataref up or down the list. Show/Hide are written, and X-Plane applies them, in this order (#401)"""
+
+    bl_label = "Move Dataref"
+    bl_idname = "bone.move_xplane_dataref"
+    bl_options = {"INTERNAL"}
+    bl_description = "Move the X-Plane Dataref up or down. Show/Hide apply in this order"
+
+    index: bpy.props.IntProperty()
+    direction: bpy.props.EnumProperty(items=_MOVE_DIRECTIONS, default="UP")
+
+    def execute(self, context):
+        bone = context.bone or context.active_bone
+        armature = context.object
+        # Bone dataref keyframes live on the Armature datablock, not the Object
+        move_dataref(
+            bone.xplane.datarefs,
+            self.index,
+            self.direction,
+            armature.data.animation_data,
+            bone,
+        )
         return {"FINISHED"}
 
 
@@ -1158,12 +1238,14 @@ _ops = (
     OBJECT_OT_remove_xplane_light_attribute,
     OBJECT_OT_add_xplane_dataref,
     OBJECT_OT_remove_xplane_dataref,
+    OBJECT_OT_move_xplane_dataref,
     OBJECT_OT_add_xplane_dataref_keyframe,
     OBJECT_OT_remove_xplane_dataref_keyframe,
     OBJECT_OT_add_xplane_export_path_directive,
     OBJECT_OT_remove_xplane_export_path_directive,
     BONE_OT_add_xplane_dataref,
     BONE_OT_remove_xplane_dataref,
+    BONE_OT_move_xplane_dataref,
     BONE_OT_add_xplane_dataref_keyframe,
     BONE_OT_remove_xplane_dataref_keyframe,
     OBJECT_OT_add_xplane_object_condition,
