@@ -346,6 +346,9 @@ def rain_layout(
 
 def scene_layout(layout: bpy.types.UILayout, scene: bpy.types.Scene):
     layout.row().operator("scene.export_to_relative_dir", icon="EXPORT")
+    row = layout.row(align=True)
+    row.operator("xplane.open_export_log", icon="TEXT")
+    row.operator("xplane.select_log_objects", icon="RESTRICT_SELECT_OFF")
     layout.row().operator("xplane.export_scene_report", icon="FILE_TEXT")
     row = layout.row()
     layout.row().prop(scene.xplane, "version")

@@ -72,6 +72,7 @@ New features, checked in X-Plane 12.4.4:
 - The "Scenery Shadows" condition (`SCENERY_SHADOWS`), as used by Laminar's own scenery. See [Conditions](#conditions-if--endif).
 
 Checks and conveniences added in this fork (October 2026):
+- After an export with errors, the objects the errors name are selected, with the first one active (#140). The error popup and the Scene panel have **Open Export Log**, which shows the `xplane2blender.log` text block in a Text Editor (a new window if there is none, #239), and **Select Objects In Log**, which selects the objects named in the last export's errors, or its warnings when there were none. An error about a bone selects its armature.
 - Datarefs are checked on export against X-Plane 12.4's `DataRefs.txt`, now bundled (#344). A `sim/` dataref that isn't in the file, an array dataref used without an element (`throttle_ratio` instead of `throttle_ratio[0]`), an element past the end of the array, an element on a non-array, or a space in the path, each warn once per OBJ and name the object. The same message shows under the dataref field in the Object, Bone, Light, Material and Manipulator panels. Choosing an array dataref in the search window fills in `[0]` to edit (#68, #345). A plugin's own datarefs aren't in the file, so only their shape is checked.
 
 Issue and pull request numbers refer to [X-Plane/XPlane2Blender](https://github.com/X-Plane/XPlane2Blender). For the authors of each change, full links, what was left out and why, and a review of the unofficial forum port, see [REVIEW-5.0.md](REVIEW-5.0.md).

@@ -2,8 +2,9 @@
 
 import os
 import os.path
+import re
 import sys
-from typing import IO, Any, Optional, Set
+from typing import IO, Any, Dict, List, Optional, Set
 
 import bpy
 import mathutils
@@ -17,15 +18,117 @@ from .xplane_helpers import XPlaneLogger, logger
 from .xplane_types import xplane_file
 
 
+EXPORT_LOG_NAME = "xplane2blender.log"
+
+
+def objects_named_in_messages(
+    messages: List[Dict[str, Any]], scene: bpy.types.Scene
+) -> List[bpy.types.Object]:
+    """
+    The scene's objects whose names appear in the log messages (#140). Messages
+    name the object they're about, in quotes or at the start, but don't carry it
+    as data. A bone's name finds its armature. "Cube" isn't found in "Cube.001"
+    """
+    texts = [message["message"] for message in messages]
+
+    def named(name: str) -> bool:
+        pattern = re.compile(
+            r"(?<![\w.\-])" + re.escape(name) + r"(?![\w\-]|\.\w)"
+        )
+        return any(pattern.search(text) for text in texts)
+
+    return [
+        obj
+        for obj in scene.objects
+        if named(obj.name)
+        or (obj.type == "ARMATURE" and any(named(bone.name) for bone in obj.data.bones))
+    ]
+
+
+def select_objects(
+    objects: List[bpy.types.Object], view_layer: bpy.types.ViewLayer
+) -> int:
+    """Selects only objects, the first one active. Returns how many could be selected"""
+    for obj in view_layer.objects:
+        obj.select_set(False, view_layer=view_layer)
+    selected = 0
+    for obj in objects:
+        try:
+            obj.select_set(True, view_layer=view_layer)
+        except RuntimeError:
+            # Not in this view layer
+            continue
+        if selected == 0:
+            view_layer.objects.active = obj
+        selected += 1
+    return selected
+
+
+class XPLANE_OT_open_export_log(bpy.types.Operator):
+    """Shows the export log in a Text Editor, in a new window if there is none (#239)"""
+
+    bl_idname = "xplane.open_export_log"
+    bl_label = "Open Export Log"
+
+    @classmethod
+    def poll(cls, context):
+        return EXPORT_LOG_NAME in bpy.data.texts
+
+    def execute(self, context):
+        text = bpy.data.texts[EXPORT_LOG_NAME]
+        if bpy.app.background or context.window is None or context.screen is None:
+            self.report({"WARNING"}, f"No window to show the '{EXPORT_LOG_NAME}' text block in")
+            return {"CANCELLED"}
+        for area in context.screen.areas:
+            if area.type == "TEXT_EDITOR":
+                area.spaces.active.text = text
+                area.tag_redraw()
+                return {"FINISHED"}
+        try:
+            bpy.ops.wm.window_new()
+        except RuntimeError:
+            self.report({"WARNING"}, f"Could not open a window for the '{EXPORT_LOG_NAME}' text block")
+            return {"CANCELLED"}
+        area = context.window_manager.windows[-1].screen.areas[0]
+        area.type = "TEXT_EDITOR"
+        area.spaces.active.text = text
+        return {"FINISHED"}
+
+
+class XPLANE_OT_select_log_objects(bpy.types.Operator):
+    """Selects the objects named in the last export's errors, or in its warnings when there were no errors (#140)"""
+
+    bl_idname = "xplane.select_log_objects"
+    bl_label = "Select Objects In Log"
+
+    @classmethod
+    def poll(cls, context):
+        return bool(logger.messages)
+
+    def execute(self, context):
+        messages = logger.findErrors() or logger.findWarnings()
+        objects = objects_named_in_messages(messages, context.scene)
+        selected = select_objects(objects, context.view_layer)
+        self.report({"INFO"}, f"Selected {selected} object(s) named in the export log")
+        return {"FINISHED"}
+
+
 class XPLANE_MT_xplane_export_log(bpy.types.Menu):
     bl_idname = "XPLANE_MT_xplane_export_log"
-    bl_label = "XPlane2Blender Export Log Warning"
+    bl_label = "XPlane2Blender Export Log"
 
     def draw(self, context):
-        self.layout.row().label(text="Export produced errors or warnings.")
-        self.layout.row().label(
-            text="Please see the internal text file xplane2blender.log"
+        layout = self.layout
+        errors, warnings = logger.findErrors(), logger.findWarnings()
+        layout.label(
+            text=f"Export produced {len(errors)} error(s) and {len(warnings)} warning(s)",
+            icon="ERROR" if errors else "INFO",
         )
+        for message in (errors or warnings)[:3]:
+            layout.label(text=message["message"][:90])
+        layout.separator()
+        layout.operator(XPLANE_OT_open_export_log.bl_idname, icon="TEXT")
+        layout.operator(XPLANE_OT_select_log_objects.bl_idname, icon="RESTRICT_SELECT_OFF")
 
 
 def showLogDialog():
@@ -164,7 +267,12 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
             self.report(
                 {"WARNING"},
                 f"Export failed: {logger.findErrors()[0]['message']}"
-                " (see the 'xplane2blender.log' text block)",
+                f" (see the '{EXPORT_LOG_NAME}' text block)",
+            )
+            # Leave the objects the errors are about selected (#140)
+            select_objects(
+                objects_named_in_messages(logger.findErrors(), bpy.context.scene),
+                bpy.context.view_layer,
             )
             showLogDialog()
         else:
@@ -187,7 +295,7 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
 
         # always log to internal text file and console
         logger.addTransport(
-            XPlaneLogger.InternalTextTransport("xplane2blender.log"), logLevels
+            XPlaneLogger.InternalTextTransport(EXPORT_LOG_NAME), logLevels
         )
         logger.addTransport(XPlaneLogger.ConsoleTransport(), logLevels)
 
@@ -283,6 +391,11 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         return {"RUNNING_MODAL"}
 
 
-_classes = (XPLANE_MT_xplane_export_log, EXPORT_OT_ExportXPlane)
+_classes = (
+    XPLANE_OT_open_export_log,
+    XPLANE_OT_select_log_objects,
+    XPLANE_MT_xplane_export_log,
+    EXPORT_OT_ExportXPlane,
+)
 
 register, unregister = bpy.utils.register_classes_factory(_classes)
