@@ -76,7 +76,8 @@ def dataref_problem(path: str) -> Optional[str]:
     if info.is_array_type:
         if index is None:
             size = f"{info.array_size} elements" if info.array_size else "elements"
-            return f"is an array of {size}, so add the one to use, like {base}[0]"
+            # The last part of the path keeps the panel's hint short
+            return f"is an array of {size}, so add the one to use, like {base.rsplit('/', 1)[-1]}[0]"
         if info.array_size and int(index) >= info.array_size:
             return (
                 f"has only {info.array_size} elements,"
