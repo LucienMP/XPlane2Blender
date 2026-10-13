@@ -217,9 +217,9 @@ def cleanup():
     shutil.rmtree(PACK, ignore_errors=True)
     shutil.rmtree(PLUGIN, ignore_errors=True)
     shutil.copy(os.path.join(BACKUP, "scenery_packs.ini"), INI)
-    prefs = os.path.join(XP, "Output", "preferences")
-    for f in os.listdir(os.path.join(BACKUP, "preferences")):
-        shutil.copy(os.path.join(BACKUP, "preferences", f), os.path.join(prefs, f))
+    # The preferences folder has subfolders too (plugins keep theirs there)
+    shutil.copytree(os.path.join(BACKUP, "preferences"), os.path.join(XP, "Output", "preferences"),
+                    dirs_exist_ok=True)
     shutil.copy(os.path.join(BACKUP, "Log.txt"), os.path.join(XP, "Log.txt"))
     # So the next install takes a fresh backup
     shutil.rmtree(BACKUP)
