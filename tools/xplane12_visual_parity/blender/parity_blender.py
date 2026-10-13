@@ -32,8 +32,8 @@ import make_booth  # noqa: E402
 from io_xplane2blender.xplane_helpers import get_action_fcurves, logger, vec_b_to_x  # noqa: E402
 from io_xplane2blender.xplane_types import xplane_file  # noqa: E402
 
-MODEL_COLOURS = [name for name, _ in make_booth.PALETTE if name != "green"]
-BACKGROUND = "green"
+BACKGROUND = make_booth.BACKGROUND
+MODEL_COLOURS = [name for name, _ in make_booth.PALETTE if name != BACKGROUND]
 
 
 # --- Sample scene --------------------------------------------------------------------------
@@ -55,6 +55,15 @@ def box(name, colour, size, location, rotation=(0, 0, 0), parent=None, materials
     faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, [], faces)
+    # Outward normals: X-Plane culls back faces, Blender's Workbench draws both sides, and
+    # the first version of this sample had its top and bottom faces inside out. The parity
+    # test found that in the top view, which is the kind of thing it is for
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
     uv = mesh.uv_layers.new()
     u, v = make_booth.cell_uv(colour)
     for loop in mesh.loops:
@@ -89,7 +98,7 @@ def cmd_sample(args):
     box("cube_red", "red", (2, 2, 2), (0, 0, 1), parent=root, materials=materials)
     box("post_blue", "blue", (0.6, 0.6, 4), (3, 0, 2), parent=root, materials=materials)
     box("wedge_yellow", "yellow", (2, 1, 0.5), (-3, 1, 0.25), rotation=(0, 0, 30), parent=root, materials=materials)
-    box("bar_orange", "orange", (6, 0.3, 0.3), (0, -1.5, 3.5), parent=root, materials=materials)
+    box("bar_white", "white", (6, 0.3, 0.3), (0, -1.5, 3.5), parent=root, materials=materials)
     box("hidden_white", "white", (1, 1, 1), (0, 2.5, 0.5), parent=root, materials=materials)
     box("flag_magenta", "magenta", (0.2, 1.5, 1), (-1.5, 2.5, 3), parent=root, materials=materials)
 
@@ -185,7 +194,8 @@ def resolve_views(views_spec, lo, hi):
             "target_obj": list(centre),
         })
     return {"fov_deg": fov, "fov_axis": views_spec.get("fov_axis", "horizontal"),
-            "distance": distance, "bounds_obj": [list(lo), list(hi)], "views": resolved}
+            "distance": distance, "bounds_obj": [list(lo), list(hi)], "views": resolved,
+            "ignore": views_spec.get("ignore", [])}
 
 
 def cmd_export(args):
@@ -367,22 +377,28 @@ def load_rgb(path):
 
 def classify(rgb):
     """
-    Palette index per pixel (make_booth.PALETTE order), -1 for dark or unknown. Each
-    pixel is normalised by its brightest channel first, so exposure doesn't matter
+    Palette index per pixel (make_booth.PALETTE order): dark pixels are the black
+    background, -1 is a colour that matches nothing. Each other pixel is normalised
+    by its brightest channel first, so exposure doesn't matter
     """
     import numpy as np
+    names = [n for n, _ in make_booth.PALETTE]
     brightest = rgb.max(axis=2)
-    dark = brightest < 0.10
+    dark = brightest < 0.08
     normalised = rgb / np.maximum(brightest, 1e-6)[:, :, None]
     labels = np.full(brightest.shape, -1, dtype=np.int8)
     best = np.full(brightest.shape, 1e9, dtype=np.float32)
-    for index, (_, colour) in enumerate(make_booth.PALETTE):
+    for index, (name, colour) in enumerate(make_booth.PALETTE):
+        if name == BACKGROUND:
+            continue
         reference = np.array(colour, dtype=np.float32) / max(colour)
         distance = ((normalised - reference) ** 2).sum(axis=2)
         closer = distance < best
         labels[closer] = index
         best[closer] = distance[closer]
-    labels[dark | (best > 0.3)] = -1
+    # X-Plane's night rendering shifts hues a little; 0.45 is about half way between palette colours
+    labels[best > 0.45] = -1
+    labels[dark] = names.index(BACKGROUND)
     return labels
 
 
@@ -415,10 +431,10 @@ def save_png(path, rgb):
     bpy.data.images.remove(image)
 
 
-def extent(labels, background):
-    """Bounding box of the model's pixels: (x0, y0, x1, y1) or None"""
+def extent(labels, background, keep):
+    """Bounding box of the model's compared pixels: (x0, y0, x1, y1) or None"""
     import numpy as np
-    model = (labels >= 0) & (labels != background)
+    model = (labels >= 0) & (labels != background) & keep
     ys, xs = np.nonzero(model)
     if len(xs) == 0:
         return None
@@ -448,6 +464,11 @@ def cmd_compare(args):
             continue
         la, lb = classify(a), classify(b)
         keep = ~(edge_mask(la) | edge_mask(lb))
+        # Ignored regions, as fractions of the image from the top left (overlays such as X-Plane's data output)
+        h, w = la.shape
+        for x0, y0, x1, y1 in resolved.get("ignore", []):
+            # Blender's pixel rows start at the bottom
+            keep[int(h - y1 * h) : int(h - y0 * h), int(x0 * w) : int(x1 * w)] = False
         agree = (la == lb) & keep
         agreement = agree.sum() / max(keep.sum(), 1)
         lines = [f"{name}: agreement {agreement * 100:.1f}% of {int(keep.sum())} compared pixels"]
@@ -465,8 +486,8 @@ def cmd_compare(args):
                 view_ok = False
             lines.append(f"    {colour:8s} IoU {iou:.3f}  Blender {in_a.sum() / total * 100:5.2f}%  X-Plane {in_b.sum() / total * 100:5.2f}%{flag}")
         unknown_b = ((lb == -1) & keep).sum() / total
-        lines.append(f"    unknown/dark pixels in X-Plane: {unknown_b * 100:.2f}%")
-        ea, eb = extent(la, background), extent(lb, background)
+        lines.append(f"    pixels matching no colour in X-Plane: {unknown_b * 100:.2f}%")
+        ea, eb = extent(la, background, keep), extent(lb, background, keep)
         if ea and eb:
             wa, ha, wb, hb = ea[2] - ea[0], ea[3] - ea[1], eb[2] - eb[0], eb[3] - eb[1]
             lines.append(f"    model extent Blender {wa}x{ha} px at ({(ea[0] + ea[2]) // 2},{(ea[1] + ea[3]) // 2}),"
@@ -475,10 +496,13 @@ def cmd_compare(args):
         lines[0] += "  PASS" if view_ok else "  FAIL"
         failed |= not view_ok
         report.extend(lines)
-        # Diff image: X-Plane's classification dimmed, disagreements in red, ignored edges dark
+        # Diff image: X-Plane's classification dimmed (background dark grey, unknown
+        # white), disagreements in red, ignored edges black
         diff = np.zeros(a.shape, dtype=np.float32)
-        for index, (_, colour) in enumerate(make_booth.PALETTE):
-            diff[lb == index] = np.array(colour, dtype=np.float32) / 255 * 0.35
+        for index, (name, colour) in enumerate(make_booth.PALETTE):
+            diff[lb == index] = (0.15, 0.15, 0.15) if name == BACKGROUND else np.array(colour, dtype=np.float32) / 255 * 0.4
+        diff[lb == -1] = (1, 1, 1)
+        diff[~keep] = (0, 0, 0)
         diff[(la != lb) & keep] = (1, 0, 0)
         save_png(os.path.join(work, f"diff_{name}.png"), diff)
     report.append("RESULT: " + ("FAIL" if failed else "PASS"))

@@ -30,7 +30,7 @@
 
 static char g_dir[1024];
 static FILE *g_log;
-static float g_t, g_state_t;
+static float g_t, g_state_t, g_armed_t = -1;
 static int g_state;
 static float g_quiet_since = -1;
 static XPLMDataRef g_loading, g_local_x, g_local_y, g_local_z, g_psi, g_fov_ref;
@@ -190,7 +190,9 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
 
     if (g_booth || g_model) place_instances();
 
-    if (g_t > 420.0f && g_state > 0 && g_state < 90) {
+    /* Flight loops don't run while X-Plane loads or shows a dialog, so the first call can
+     * arrive minutes in; the timeout counts from arming, not from start */
+    if (g_armed_t >= 0 && g_t - g_armed_t > 420.0f && g_state > 0 && g_state < 90) {
         logf_("TIMEOUT, quitting", NULL);
         NEXT(90);
     }
@@ -204,6 +206,7 @@ static float loop_cb(float since_call, float since_loop, int counter, void *ref)
             if (!armed) { logf_("not armed, doing nothing", NULL); NEXT(99); break; }
             fclose(armed);
             remove(p);
+            g_armed_t = g_t;
             logf_("armed", NULL);
             NEXT(1);
         }

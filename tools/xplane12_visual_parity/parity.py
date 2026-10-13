@@ -87,13 +87,47 @@ def install():
         os.makedirs(BACKUP, exist_ok=True)
         shutil.copytree(os.path.join(XP, "Output", "preferences"), os.path.join(BACKUP, "preferences"))
         shutil.copy(os.path.join(XP, "Log.txt"), BACKUP)
+    restore_other_plugins()
     os.makedirs(os.path.join(PLUGIN, "64"), exist_ok=True)
     os.makedirs(os.path.join(PLUGIN, "objects"), exist_ok=True)
     shutil.copy(xpl, os.path.join(PLUGIN, "64", "win.xpl"))
     print("installed", PLUGIN)
 
 
+KEEP_PLUGINS = {PLUGIN_NAME, "PluginAdmin"}
+# Next to the plugins folder, on the same drive: a rename, never a copy and delete
+ASIDE = os.path.join(XP, "Resources", "plugins_aside_xp2b")
+
+
+def set_aside_other_plugins():
+    """
+    Other plugins draw windows and overlays into the screenshots, so their folders are
+    renamed into Resources/plugins_aside_xp2b for the run and put back by
+    restore_other_plugins(), which install, cleanup and the next run also do
+    """
+    plugins = os.path.join(XP, "Resources", "plugins")
+    os.makedirs(ASIDE, exist_ok=True)
+    moved = []
+    for entry in os.listdir(plugins):
+        path = os.path.join(plugins, entry)
+        if entry in KEEP_PLUGINS or not os.path.isdir(path) or entry.startswith(("XPLM", "XPWidgets")):
+            continue
+        os.rename(path, os.path.join(ASIDE, entry))
+        moved.append(entry)
+    print("plugins set aside:", ", ".join(moved) or "none")
+
+
+def restore_other_plugins():
+    if not os.path.isdir(ASIDE):
+        return
+    plugins = os.path.join(XP, "Resources", "plugins")
+    for entry in os.listdir(ASIDE):
+        os.rename(os.path.join(ASIDE, entry), os.path.join(plugins, entry))
+    os.rmdir(ASIDE)
+
+
 def cleanup():
+    restore_other_plugins()
     shutil.rmtree(PLUGIN, ignore_errors=True)
     if os.path.exists(BACKUP):
         prefs = os.path.join(XP, "Output", "preferences")
@@ -116,6 +150,37 @@ def web(method, path, body=None, timeout=10):
         conn.close()
 
 
+def current_aircraft():
+    """The loaded aircraft's path through the Web API, or None if it can't be read"""
+    import base64
+    try:
+        status, raw = web("GET", "/api/v2/datarefs?filter[name]=sim/aircraft/view/acf_relative_path")
+        if status != 200:
+            return None
+        dataref_id = json.loads(raw)["data"][0]["id"]
+        status, raw = web("GET", f"/api/v2/datarefs/{dataref_id}/value")
+        if status != 200:
+            return None
+        value = json.loads(raw)["data"]
+        if isinstance(value, str):
+            value = base64.b64decode(value).split(b"\0", 1)[0].decode(errors="replace")
+        return value
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+def post_flight():
+    try:
+        status, raw = web("POST", "/api/v3/flight", {"data": FLIGHT}, timeout=TIMEOUT)
+    except http.client.RemoteDisconnected:
+        return None  # X-Plane drops the connection once the new flight has loaded
+    except OSError as e:
+        return f"POST /api/v3/flight failed: {e}"
+    if status >= 400:
+        return f"POST /api/v3/flight: HTTP {status} {raw[:300]!r}"
+    return None
+
+
 def start_flight(proc):
     deadline = time.time() + 300
     while time.time() < deadline:
@@ -129,15 +194,20 @@ def start_flight(proc):
         time.sleep(3)
     else:
         return "Web API never answered (Settings > Network: allow incoming traffic?)"
-    try:
-        status, raw = web("POST", "/api/v3/flight", {"data": FLIGHT}, timeout=TIMEOUT)
-    except http.client.RemoteDisconnected:
-        return None  # X-Plane drops the connection once the new flight has loaded
-    except OSError as e:
-        return f"POST /api/v3/flight failed: {e}"
-    if status >= 400:
-        return f"POST /api/v3/flight: HTTP {status} {raw[:300]!r}"
-    return None
+    wanted = os.path.basename(FLIGHT["aircraft"]["path"])
+    aircraft = None
+    for attempt in range(3):
+        error = post_flight()
+        if error:
+            return error
+        # X-Plane may still apply the user's own start-up flight after ours (seen with a
+        # "Start new flight" Flight Configuration); check what is loaded and ask again
+        time.sleep(20)
+        aircraft = current_aircraft()
+        print(f"flight request {attempt + 1}: aircraft now {aircraft!r}", flush=True)
+        if aircraft is None or aircraft.endswith(wanted):
+            return None
+    return f"X-Plane keeps loading {aircraft!r} instead of {wanted}"
 
 
 def wait_for_exit(proc, start):
@@ -182,12 +252,17 @@ def run_xplane(work, view_names):
     shots_dir = os.path.join(XP, "Output", "screenshots")
     before = set(glob.glob(os.path.join(shots_dir, "*.png")))
     start = time.time()
-    proc = subprocess.Popen([os.path.join(XP, "X-Plane.exe")], cwd=XP)
-    status = start_flight(proc) or wait_for_exit(proc, start)
-    if proc.poll() is None:
-        proc.kill()
-        proc.wait()
-        status += ", force-closed"
+    restore_other_plugins()  # from a run that didn't get to restore them
+    set_aside_other_plugins()
+    try:
+        proc = subprocess.Popen([os.path.join(XP, "X-Plane.exe")], cwd=XP)
+        status = start_flight(proc) or wait_for_exit(proc, start)
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+            status += ", force-closed"
+    finally:
+        restore_other_plugins()
     shutil.copy(os.path.join(PLUGIN, "log.txt"), os.path.join(work, "plugin_log.txt"))
     shutil.copy(os.path.join(XP, "Log.txt"), os.path.join(work, "XPlane_Log.txt"))
     shots = sorted(set(glob.glob(os.path.join(shots_dir, "*.png"))) - before)
