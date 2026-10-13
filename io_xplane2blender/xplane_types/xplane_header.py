@@ -1,9 +1,10 @@
 import os
 import platform
 import re
+import struct
 from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import bpy
 
@@ -235,7 +236,7 @@ class XPlaneHeader:
             try:
                 self.attributes["TEXTURE"].setValue(
                     self.get_path_relative_to_dir(
-                        self.xplaneFile.options.texture, exportdir
+                        self.xplaneFile.options.texture, exportdir, texture=True
                     )
                 )
             except (OSError, ValueError):
@@ -245,7 +246,7 @@ class XPlaneHeader:
             try:
                 self.attributes["TEXTURE_LIT"].setValue(
                     self.get_path_relative_to_dir(
-                        self.xplaneFile.options.texture_lit, exportdir
+                        self.xplaneFile.options.texture_lit, exportdir, texture=True
                     )
                 )
             except (OSError, ValueError):
@@ -255,7 +256,7 @@ class XPlaneHeader:
             try:
                 self.attributes["TEXTURE_NORMAL"].setValue(
                     self.get_path_relative_to_dir(
-                        self.xplaneFile.options.texture_normal, exportdir
+                        self.xplaneFile.options.texture_normal, exportdir, texture=True
                     )
                 )
             except (OSError, ValueError):
@@ -270,7 +271,7 @@ class XPlaneHeader:
                             
                         self.attributes[XPlaneAttributeName("DECAL_LIB", 1)].addValue(
                             self.get_path_relative_to_dir(
-                                self.xplaneFile.options.file_decal1, exportdir
+                                self.xplaneFile.options.file_decal1, exportdir, texture=True
                             )
                         )
                     elif self.xplaneFile.options.decal1_projected:
@@ -286,7 +287,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.alpha_decal1_red_key, self.xplaneFile.options.alpha_decal1_green_key, self.xplaneFile.options.alpha_decal1_blue_key, self.xplaneFile.options.alpha_decal1_alpha_key,
                                 self.xplaneFile.options.alpha_decal1_modulator, self.xplaneFile.options.alpha_decal1_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_decal1, exportdir
+                                    self.xplaneFile.options.file_decal1, exportdir, texture=True
                                 )
                             )
                         )  
@@ -303,7 +304,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.alpha_decal1_red_key, self.xplaneFile.options.alpha_decal1_green_key, self.xplaneFile.options.alpha_decal1_blue_key, self.xplaneFile.options.alpha_decal1_alpha_key,
                                 self.xplaneFile.options.alpha_decal1_modulator, self.xplaneFile.options.alpha_decal1_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_decal1, exportdir
+                                    self.xplaneFile.options.file_decal1, exportdir, texture=True
                                 )
                             )
                         )     
@@ -318,7 +319,7 @@ class XPlaneHeader:
                             
                         self.attributes[XPlaneAttributeName("DECAL_LIB", 1)].addValue(
                             self.get_path_relative_to_dir(
-                                self.xplaneFile.options.file_decal2, exportdir
+                                self.xplaneFile.options.file_decal2, exportdir, texture=True
                             )
                         )
                     elif self.xplaneFile.options.decal2_projected:
@@ -334,7 +335,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.alpha_decal2_red_key, self.xplaneFile.options.alpha_decal2_green_key, self.xplaneFile.options.alpha_decal2_blue_key, self.xplaneFile.options.alpha_decal2_alpha_key,
                                 self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_decal2, exportdir
+                                    self.xplaneFile.options.file_decal2, exportdir, texture=True
                                 )
                             )
                         )  
@@ -351,7 +352,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.alpha_decal2_red_key, self.xplaneFile.options.alpha_decal2_green_key, self.xplaneFile.options.alpha_decal2_blue_key, self.xplaneFile.options.alpha_decal2_alpha_key,
                                 self.xplaneFile.options.alpha_decal2_modulator, self.xplaneFile.options.alpha_decal2_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_decal2, exportdir
+                                    self.xplaneFile.options.file_decal2, exportdir, texture=True
                                 )
                             )
                         )     
@@ -370,7 +371,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.normal_decal1_red_key, self.xplaneFile.options.normal_decal1_green_key, self.xplaneFile.options.normal_decal1_blue_key, self.xplaneFile.options.normal_decal1_alpha_key,
                                 self.xplaneFile.options.normal_decal1_modulator, self.xplaneFile.options.normal_decal1_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_normal_decal1, exportdir
+                                    self.xplaneFile.options.file_normal_decal1, exportdir, texture=True
                                 ),
                                 get_effective_gloss(self.xplaneFile.options.file_normal_decal1)
                             )
@@ -385,7 +386,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.normal_decal1_red_key, self.xplaneFile.options.normal_decal1_green_key, self.xplaneFile.options.normal_decal1_blue_key, self.xplaneFile.options.normal_decal1_alpha_key,
                                 self.xplaneFile.options.normal_decal1_modulator, self.xplaneFile.options.normal_decal1_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_normal_decal1, exportdir
+                                    self.xplaneFile.options.file_normal_decal1, exportdir, texture=True
                                 ),
                                 get_effective_gloss(self.xplaneFile.options.file_normal_decal1)
                             )
@@ -405,7 +406,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.normal_decal2_red_key, self.xplaneFile.options.normal_decal2_green_key, self.xplaneFile.options.normal_decal2_blue_key, self.xplaneFile.options.normal_decal2_alpha_key,
                                 self.xplaneFile.options.normal_decal2_modulator, self.xplaneFile.options.normal_decal2_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_normal_decal2, exportdir
+                                    self.xplaneFile.options.file_normal_decal2, exportdir, texture=True
                                 ),
                                 get_effective_gloss(self.xplaneFile.options.file_normal_decal2)
                             )
@@ -420,7 +421,7 @@ class XPlaneHeader:
                                 self.xplaneFile.options.normal_decal2_red_key, self.xplaneFile.options.normal_decal2_green_key, self.xplaneFile.options.normal_decal2_blue_key, self.xplaneFile.options.normal_decal2_alpha_key,
                                 self.xplaneFile.options.normal_decal2_modulator, self.xplaneFile.options.normal_decal2_constant,
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_normal_decal2, exportdir
+                                    self.xplaneFile.options.file_normal_decal2, exportdir, texture=True
                                 ),
                                 get_effective_gloss(self.xplaneFile.options.file_normal_decal2)
                             )
@@ -432,7 +433,7 @@ class XPlaneHeader:
                 try:
                     self.attributes[XPlaneAttributeName("TEXTURE_MODULATOR", 1)].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_modulator, exportdir
+                            self.xplaneFile.options.texture_modulator, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -443,7 +444,7 @@ class XPlaneHeader:
                 try:
                     self.attributes["TEXTURE_MAP normal"].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_map_normal, exportdir
+                            self.xplaneFile.options.texture_map_normal, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -453,7 +454,7 @@ class XPlaneHeader:
                 try:
                     self.attributes["TEXTURE_MAP material_gloss"].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_map_material_gloss, exportdir
+                            self.xplaneFile.options.texture_map_material_gloss, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -463,7 +464,7 @@ class XPlaneHeader:
                 try:
                     self.attributes["TEXTURE_MAP gloss"].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_map_gloss, exportdir
+                            self.xplaneFile.options.texture_map_gloss, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -513,7 +514,7 @@ class XPlaneHeader:
                     try:
                         self.attributes["THERMAL_texture"].setValue(
                             self.get_path_relative_to_dir(
-                                rain_props.thermal_texture, exportdir
+                                rain_props.thermal_texture, exportdir, texture=True
                             )
                         )
                     except (OSError, ValueError):
@@ -562,7 +563,7 @@ class XPlaneHeader:
                     try:
                         self.attributes["WIPER_texture"].setValue(
                             self.get_path_relative_to_dir(
-                                rain_props.wiper_texture, exportdir
+                                rain_props.wiper_texture, exportdir, texture=True
                             )
                         )
                     except (OSError, ValueError):
@@ -621,7 +622,7 @@ class XPlaneHeader:
                 try:
                     self.attributes["TEXTURE_DRAPED"].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_draped, exportdir
+                            self.xplaneFile.options.texture_draped, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -637,6 +638,7 @@ class XPlaneHeader:
                         + self.get_path_relative_to_dir(
                             self.xplaneFile.options.texture_draped_normal,
                             exportdir,
+                            texture=True,
                         )
                     )
                 except (OSError, ValueError):
@@ -695,7 +697,7 @@ class XPlaneHeader:
                                 
                             self.attributes[XPlaneAttributeName("DECAL_LIB", 2)].addValue(
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_draped_decal1, exportdir
+                                    self.xplaneFile.options.file_draped_decal1, exportdir, texture=True
                                 )
                             )
                         elif self.xplaneFile.options.draped_decal1_projected:
@@ -711,7 +713,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_alpha_decal1_red_key, self.xplaneFile.options.draped_alpha_decal1_green_key, self.xplaneFile.options.draped_alpha_decal1_blue_key, self.xplaneFile.options.draped_alpha_decal1_alpha_key,
                                     self.xplaneFile.options.draped_alpha_decal1_modulator, self.xplaneFile.options.draped_alpha_decal1_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_decal1, exportdir
+                                        self.xplaneFile.options.file_draped_decal1, exportdir, texture=True
                                     )
                                 )
                             )
@@ -728,7 +730,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_alpha_decal1_red_key, self.xplaneFile.options.draped_alpha_decal1_green_key, self.xplaneFile.options.draped_alpha_decal1_blue_key, self.xplaneFile.options.draped_alpha_decal1_alpha_key,
                                     self.xplaneFile.options.draped_alpha_decal1_modulator, self.xplaneFile.options.draped_alpha_decal1_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_decal1, exportdir
+                                        self.xplaneFile.options.file_draped_decal1, exportdir, texture=True
                                     )
                                 )
                             )     
@@ -743,7 +745,7 @@ class XPlaneHeader:
                                 
                             self.attributes[XPlaneAttributeName("DECAL_LIB", 2)].addValue(
                                 self.get_path_relative_to_dir(
-                                    self.xplaneFile.options.file_draped_decal2, exportdir
+                                    self.xplaneFile.options.file_draped_decal2, exportdir, texture=True
                                 )
                             )
                         elif self.xplaneFile.options.draped_decal2_projected:
@@ -759,7 +761,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_alpha_decal2_red_key, self.xplaneFile.options.draped_alpha_decal2_green_key, self.xplaneFile.options.draped_alpha_decal2_blue_key, self.xplaneFile.options.draped_alpha_decal2_alpha_key,
                                     self.xplaneFile.options.draped_alpha_decal2_modulator, self.xplaneFile.options.draped_alpha_decal2_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_decal2, exportdir
+                                        self.xplaneFile.options.file_draped_decal2, exportdir, texture=True
                                     )
                                 )
                             )
@@ -776,7 +778,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_alpha_decal2_red_key, self.xplaneFile.options.draped_alpha_decal2_green_key, self.xplaneFile.options.draped_alpha_decal2_blue_key, self.xplaneFile.options.draped_alpha_decal2_alpha_key,
                                     self.xplaneFile.options.draped_alpha_decal2_modulator, self.xplaneFile.options.draped_alpha_decal2_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_decal2, exportdir
+                                        self.xplaneFile.options.file_draped_decal2, exportdir, texture=True
                                     )
                                 )
                             )     
@@ -795,7 +797,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_normal_decal1_red_key, self.xplaneFile.options.draped_normal_decal1_green_key, self.xplaneFile.options.draped_normal_decal1_blue_key, self.xplaneFile.options.draped_normal_decal1_alpha_key,
                                     self.xplaneFile.options.draped_normal_decal1_modulator, self.xplaneFile.options.draped_normal_decal1_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_normal_decal1, exportdir
+                                        self.xplaneFile.options.file_draped_normal_decal1, exportdir, texture=True
                                     ),
                                     get_effective_gloss(self.xplaneFile.options.file_draped_normal_decal1)
                                 )
@@ -810,7 +812,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_normal_decal1_red_key, self.xplaneFile.options.draped_normal_decal1_green_key, self.xplaneFile.options.draped_normal_decal1_blue_key, self.xplaneFile.options.draped_normal_decal1_alpha_key,
                                     self.xplaneFile.options.draped_normal_decal1_modulator, self.xplaneFile.options.draped_normal_decal1_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_normal_decal1, exportdir
+                                        self.xplaneFile.options.file_draped_normal_decal1, exportdir, texture=True
                                     ),
                                     get_effective_gloss(self.xplaneFile.options.file_draped_normal_decal1)
                                 )
@@ -830,7 +832,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_normal_decal2_red_key, self.xplaneFile.options.draped_normal_decal2_green_key, self.xplaneFile.options.draped_normal_decal2_blue_key, self.xplaneFile.options.draped_normal_decal2_alpha_key,
                                     self.xplaneFile.options.draped_normal_decal2_modulator, self.xplaneFile.options.draped_normal_decal2_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_normal_decal2, exportdir
+                                        self.xplaneFile.options.file_draped_normal_decal2, exportdir, texture=True
                                     ),
                                     get_effective_gloss(self.xplaneFile.options.file_draped_normal_decal2)
                                 )
@@ -845,7 +847,7 @@ class XPlaneHeader:
                                     self.xplaneFile.options.draped_normal_decal2_red_key, self.xplaneFile.options.draped_normal_decal2_green_key, self.xplaneFile.options.draped_normal_decal2_blue_key, self.xplaneFile.options.draped_normal_decal2_alpha_key,
                                     self.xplaneFile.options.draped_normal_decal2_modulator, self.xplaneFile.options.draped_normal_decal2_constant,
                                     self.get_path_relative_to_dir(
-                                        self.xplaneFile.options.file_draped_normal_decal2, exportdir
+                                        self.xplaneFile.options.file_draped_normal_decal2, exportdir, texture=True
                                     ),
                                     get_effective_gloss(self.xplaneFile.options.file_draped_normal_decal2)
                                 )
@@ -857,7 +859,7 @@ class XPlaneHeader:
                 try:
                     self.attributes[XPlaneAttributeName("TEXTURE_MODULATOR", 2)].setValue(
                         self.get_path_relative_to_dir(
-                            self.xplaneFile.options.texture_draped_modulator, exportdir
+                            self.xplaneFile.options.texture_draped_modulator, exportdir, texture=True
                         )
                     )
                 except (OSError, ValueError):
@@ -1064,17 +1066,73 @@ class XPlaneHeader:
         for attr in self.xplaneFile.options.customAttributes:
             self.attributes.add(XPlaneAttribute(attr.name, attr.value))
 
-    def get_path_relative_to_dir(self, res_path: str, export_dir: str) -> str:
+    @staticmethod
+    def read_image_size(abs_path: str) -> Optional[Tuple[int, int]]:
+        """
+        (width, height) from a PNG or DDS file's header, without loading the image.
+        None when the file doesn't start like one
+        """
+        try:
+            with open(abs_path, "rb") as image_file:
+                header = image_file.read(24)
+        except OSError:
+            return None
+        if header[:8] == b"\x89PNG\r\n\x1a\n" and header[12:16] == b"IHDR":
+            return struct.unpack(">II", header[16:24])
+        if header[:4] == b"DDS " and len(header) >= 20:
+            height, width = struct.unpack("<II", header[12:20])
+            return width, height
+        return None
+
+    def check_texture_file(self, res_path: str, abs_path: str) -> None:
+        """
+        Warns about a texture X-Plane can't use as written (#403): not a PNG or DDS,
+        missing on disk, not a PNG/DDS inside, or not a power of two in each dimension
+        """
+        filename = self.xplaneFile.filename
+        suffix = Path(res_path).suffix.lower()
+        if suffix == ".dcl":
+            # A decal library, not an image
+            return
+        if suffix not in {".png", ".dds"}:
+            logger.warn(f"{filename}: texture '{res_path}' must be a PNG or DDS file")
+            return
+        if not os.path.isfile(abs_path):
+            logger.warn(
+                f"{filename}: texture '{res_path}' wasn't found at {abs_path}."
+                " X-Plane won't find it next to the OBJ either"
+            )
+            return
+        size = self.read_image_size(abs_path)
+        if size is None:
+            logger.warn(
+                f"{filename}: texture '{res_path}' doesn't start like a {suffix[1:].upper()} file,"
+                " X-Plane won't be able to load it"
+            )
+            return
+        width, height = size
+        if any(dimension <= 0 or dimension & (dimension - 1) for dimension in size):
+            logger.warn(
+                f"{filename}: texture '{res_path}' is {width}x{height}, not a power of two"
+                " in each dimension. X-Plane expects power-of-two textures and may not"
+                " load or mipmap this one"
+            )
+
+    def get_path_relative_to_dir(
+        self, res_path: str, export_dir: str, texture: bool = False
+    ) -> str:
         """
         Returns the resource path relative to the exported OBJ
 
         res_path   - The relative or absolute resource path (such as .png, .dds, .pss or .dcl)
                   as found in an RNA field
         export_dir - Absolute path to directory of OBJ export
+        texture    - Also run the texture file checks on it (#403)
 
         Raises ValueError or OSError for invalid paths or use of `//` not at the start of the respath
         """
         res_path = res_path.strip()
+        res_path_as_given = res_path
         if res_path.startswith(("./", ".\\")):
             # Only the leading './' means the .blend folder; replacing every './'
             # turned './../textures/a.png' into '//.//textures/a.png'
@@ -1123,9 +1181,8 @@ class XPlaneHeader:
             # 8. Paths are minimal, "./path/tex.png" is "path/tex.png" -> Path.resolve
             # 10. Absolute paths are okay as long as we can make a relative path os.path.relpath
             # abspath, not resolve, which would follow symlinks (#741)
-            rel_path = os.path.relpath(os.path.abspath(res_path), export_dir).replace(
-                "\\", "/"
-            )
+            abs_path = os.path.abspath(res_path)
+            rel_path = os.path.relpath(abs_path, export_dir).replace("\\", "/")
         except OSError:
             logger.error(f"Path '{res_path}' is invalid")
             os.chdir(old_cwd)
@@ -1145,6 +1202,8 @@ class XPlaneHeader:
                 logger.warn(
                     f"Resource path '{rel_path}' contains spaces, X-Plane will only read up to the first one"
                 )
+            if texture:
+                self.check_texture_file(res_path_as_given, abs_path)
             return rel_path
 
     # Method: _getCanonicalTexturePath
