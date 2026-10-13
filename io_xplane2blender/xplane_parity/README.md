@@ -89,6 +89,18 @@ conversion, the classifier, the comparisons and each mode's export. The X-Plane 
 in `tests/xplane_visual/` and only run with `python tests.py --xplane` (about ten minutes
 for the three modes), since they start X-Plane; CI can't run them.
 
+## Results on the sample (X-Plane 12.4.3, 13 October 2026)
+
+- Shapes: every view passes, every colour's overlap 1.000, the model's pixel extent the
+  same in both pictures to within a few pixels. On the way there the check found a real
+  defect: the first sample's top and bottom faces were wound inside out, which Blender's
+  two-sided Workbench draws and X-Plane culls, so the top view showed the floor instead.
+- Textures: 91 to 93% texture agreement, silhouettes overlapping 93 to 95%; the misses are
+  the colour shifts at texture cell edges. Before the check rendered the root's texture on
+  every material it failed honestly at 16%, since the sample's materials had no texture.
+- Lights: the beacon's billboard is 2 to 8 px from Blender's sphere in every view, red in
+  both (X-Plane's (1.0, 0.35, 0.1) after tone mapping).
+
 ## Building the plugin
 
 `plugin/win.xpl` is committed, and CI rebuilds it for release packages. By hand, with
