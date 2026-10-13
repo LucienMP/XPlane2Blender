@@ -480,6 +480,54 @@ class XPlaneDatarefSearchWindow(bpy.types.PropertyGroup):
     dataref_search_list_idx: bpy.props.IntProperty(update=onclick_dataref)
 
 
+class ListItemLight(bpy.types.PropertyGroup):
+    """A light from lights.txt, for the light name search window (#561)"""
+
+    light_name: bpy.props.StringProperty(
+        name="Light Name For Search List",
+        description="A light name in the light search window. Comes from lights.txt",
+    )
+
+    light_kind: bpy.props.StringProperty(
+        name="Light Kind For Search List",
+        description="Named or Param (with its parameters), and whether it works as an Automatic light, shown in a column in the light search window",
+    )
+
+
+class XPlaneLightSearchWindow(bpy.types.PropertyGroup):
+    # The full path of the light name property to change, as if typed in the Python
+    # console, e.g. "bpy.context.active_object.data.xplane.name". "" when closed
+    light_prop_dest: bpy.props.StringProperty(
+        default="",
+        name="Current Light Name Property To Change",
+        description="The destination light name property, starting with 'bpy.context...'",
+    )
+
+    def onclick_light(self, context):
+        """
+        Called when the template_list writes the selected index: writes the light name
+        to the paired property and closes the window
+        """
+        xplane = context.scene.xplane
+        state = xplane.light_search_window_state
+        light_prop_dest = state.light_prop_dest
+        assert (
+            light_prop_dest != ""
+        ), "should not be able to click button when search window is supposed to be closed"
+        name = state.light_search_list[state.light_search_list_idx].light_name
+
+        components = light_prop_dest.split(".")
+        assert components[0] == "bpy"
+        owner = bpy
+        for component in components[1:-1]:
+            owner = getattr(owner, component)
+        setattr(owner, components[-1], name)
+        state.light_prop_dest = ""
+
+    light_search_list: bpy.props.CollectionProperty(type=ListItemLight)
+    light_search_list_idx: bpy.props.IntProperty(update=onclick_light)
+
+
 # fmt: off
 class XPlaneExportPathDirective(bpy.types.PropertyGroup):
     export_path: bpy.props.StringProperty(
@@ -2160,6 +2208,12 @@ class XPlaneSceneSettings(bpy.types.PropertyGroup):
             type = XPlaneDatarefSearchWindow
             )
 
+    light_search_window_state: bpy.props.PointerProperty(
+            name = "Light Search Window State",
+            description = "An internally important property that keeps track of the state of the light name search window",
+            type = XPlaneLightSearchWindow
+            )
+
     debug: bpy.props.BoolProperty(
         name = "Print Debug Info To Output, OBJ",
         description = "If checked debug information will be printed to the console and into OBJ files",
@@ -2817,6 +2871,8 @@ _classes = (
     XPlaneCommandSearchWindow,
     ListItemDataref,
     XPlaneDatarefSearchWindow,
+    ListItemLight,
+    XPlaneLightSearchWindow,
     XPlaneManipulatorSettings,
     XPlaneCockpitRegion,
     XPlaneLOD,

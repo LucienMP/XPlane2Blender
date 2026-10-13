@@ -1058,6 +1058,38 @@ def command_search_window_layout(layout):
     )
 
 
+def light_search_window_layout(layout):
+    scene = bpy.context.scene
+    row = layout.row()
+    row.template_list(
+        "XPLANE_UL_LightSearchList",
+        "",
+        scene.xplane.light_search_window_state,
+        "light_search_list",
+        scene.xplane.light_search_window_state,
+        "light_search_list_idx",
+    )
+
+
+def light_name_layout(layout: bpy.types.UILayout, light_data: bpy.types.Light) -> None:
+    """The light name field with the search window toggle next to it (#561)"""
+    row = layout.row()
+    row.prop(light_data.xplane, "name")
+    paired_prop = "bpy.context.active_object.data.xplane.name"
+    expanded = (
+        bpy.context.scene.xplane.light_search_window_state.light_prop_dest == paired_prop
+    )
+    toggle_op = row.operator(
+        "xplane.light_search_toggle",
+        text="",
+        emboss=False,
+        icon="ZOOM_OUT" if expanded else "ZOOM_IN",
+    )
+    toggle_op.paired_light_prop = paired_prop
+    if expanded:
+        light_search_window_layout(layout)
+
+
 def dataref_search_window_layout(layout):
     scene = bpy.context.scene
     row = layout.row()
@@ -1157,7 +1189,7 @@ def light_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
         "POINT",
         "SPOT",
     }:
-        layout.row().prop(light_data.xplane, "name")
+        light_name_layout(layout, light_data)
 
         def draw_automatic_ui():
             try:
@@ -1316,9 +1348,9 @@ def light_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
             )
         debug_box.row().label(text=f"Width: {WIDTH_val}")
     elif light_data.xplane.type == LIGHT_NAMED:
-        layout.row().prop(light_data.xplane, "name")
+        light_name_layout(layout, light_data)
     elif light_data.xplane.type == LIGHT_PARAM:
-        layout.row().prop(light_data.xplane, "name")
+        light_name_layout(layout, light_data)
         layout.row().prop(light_data.xplane, "params")
     elif light_data.xplane.type == LIGHT_CUSTOM:
         layout.row().prop(light_data.xplane, "size")
@@ -2165,6 +2197,62 @@ class XPLANE_UL_DatarefSearchList(bpy.types.UIList):
         return flt_flags, flt_neworder
 
 
+class XPLANE_UL_LightSearchList(bpy.types.UIList):
+    """The light name search window's list (#561), searched like the dataref one"""
+
+    def draw_item(
+        self,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_propname,
+        index,
+        flt_flag,
+    ):
+        # Like the dataref list: the filter is always shown, and clicking a label selects
+        self.use_filter_show = True
+        if self.layout_type in {"DEFAULT", "COMPACT"}:
+            layout.alignment = "EXPAND"
+            row = layout.row(align=True)
+            row.alignment = "LEFT"
+            row.label(text=item.light_name, icon="NONE")
+            row.label(text="|")
+            row.label(text=item.light_kind, icon="NONE")
+
+    def draw_filter(self, context, layout):
+        row = layout.row()
+        subrow = row.row(align=True)
+        subrow.prop(self, "filter_name", text="")
+
+    def filter_items(self, context, data, propname):
+        flt_flags = []
+        flt_neworder = []
+
+        filter_name = self.filter_name
+        if filter_name == "":
+            return flt_flags, flt_neworder
+
+        # As the dataref search: searches split on |, each all of its space separated terms
+        search_info = {
+            frozenset(search.split(" ")) for search in filter_name.upper().split("|")
+        }
+
+        def check_light(light_name: str) -> bool:
+            upper_name = light_name.upper()
+            return any(
+                all(search_term in upper_name for search_term in search)
+                for search in search_info
+            )
+
+        for light in bpy.context.scene.xplane.light_search_window_state.light_search_list:
+            flt_flags.append(self.bitflag_filter_item if check_light(light.light_name) else 0)
+
+        return flt_flags, flt_neworder
+
+
 _XPlaneUITypes = (
     BONE_PT_xplane,
     DATA_PT_xplane,
@@ -2174,6 +2262,7 @@ _XPlaneUITypes = (
     SCENE_PT_xplane,
     XPLANE_UL_CommandSearchList,
     XPLANE_UL_DatarefSearchList,
+    XPLANE_UL_LightSearchList,
 )
 
 register, unregister = bpy.utils.register_classes_factory(_XPlaneUITypes)

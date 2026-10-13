@@ -18,6 +18,7 @@ from io_xplane2blender.xplane_ops_dev import *
 from io_xplane2blender.xplane_utils import (
     xplane_commands_txt_parser,
     xplane_datarefs_txt_parser,
+    xplane_lights_txt_parser,
     xplane_scene_report,
     xplane_wiper_gradient,
 )
@@ -704,6 +705,58 @@ class XPLANE_OT_DatarefSearchToggle(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class XPLANE_OT_LightSearchToggle(bpy.types.Operator):
+    """
+    Opens or closes the light name search window next to a light name field,
+    filled from the bundled lights.txt (#561)
+    """
+
+    bl_label = "Open/Close Light Search Window"
+    bl_description = "Open/Close Light Search Window"
+    bl_idname = "xplane.light_search_toggle"
+
+    paired_light_prop: bpy.props.StringProperty()
+
+    @staticmethod
+    def light_kind(parsed_light) -> str:
+        """What the search window's second column says about a light"""
+        if parsed_light.light_param_def:
+            kind = "Param: " + " ".join(parsed_light.light_param_def)
+        else:
+            kind = "Named"
+        try:
+            if not xplane_lights_txt_parser.is_automatic_light_compatible(parsed_light.name):
+                kind += " (not for Automatic lights)"
+        except KeyError:
+            pass
+        return kind
+
+    def execute(self, context):
+        state = context.scene.xplane.light_search_window_state
+        # Load on first use
+        if len(state.light_search_list) == 0:
+            try:
+                xplane_lights_txt_parser.parse_lights_file()
+            except (OSError, ValueError):
+                bpy.ops.xplane.msg(
+                    "INVOKE_DEFAULT", msg_text="lights.txt could not be parsed, see the console"
+                )
+                return {"CANCELLED"}
+            for name in sorted(xplane_lights_txt_parser._parsed_lights_txt_content):
+                parsed_light = xplane_lights_txt_parser._parsed_lights_txt_content[name]
+                item = state.light_search_list.add()
+                item.light_name = name
+                item.light_kind = self.light_kind(parsed_light)
+
+        # Toggle ourselves
+        if state.light_prop_dest == self.paired_light_prop:
+            state.light_prop_dest = ""
+        else:
+            state.light_prop_dest = self.paired_light_prop
+
+        return {"FINISHED"}
+
+
 class XPLANE_OT_XPlaneMessage(bpy.types.Operator):
     bl_idname = "xplane.msg"
     bl_label = "XPlane2Blender Message"
@@ -1120,6 +1173,7 @@ _ops = (
     SCENE_OT_export_to_relative_dir,
     XPLANE_OT_CommandSearchToggle,
     XPLANE_OT_DatarefSearchToggle,
+    XPLANE_OT_LightSearchToggle,
     XPLANE_OT_XPlaneMessage,
     XPLANE_OT_bake_wiper_gradient_texture,
     XPLANE_OT_ExportSceneReport,
