@@ -8,6 +8,12 @@ from io_xplane2blender.xplane_types import xplane_file
 __dirname__ = os.path.dirname(__file__)
 
 class TestMaterials(XPlaneTestCase):
+    def setUp(self):
+        super().setUp()
+        # test_optimize_export turns Optimize on; with it, triangles are reordered
+        # for the vertex cache (#134), which the other fixtures weren't made with
+        bpy.context.scene.xplane.optimize = False
+
 
     def test_custom_prop_export(self):
         def filterLines(line):
@@ -59,6 +65,9 @@ class TestMaterials(XPlaneTestCase):
                    (line[0] == 'VT' or \
                    line[0].find('TEXTURE') == 0)
 
+        # The fixture shares vertices, so it was made with Optimize on; it used to
+        # get that from test_optimize_export running first
+        bpy.context.scene.xplane.optimize = True
         filename = 'test_texture_coords'
         self.assertLayerExportEqualsFixture(
             4, os.path.join(__dirname__, 'fixtures', filename + '.obj'),
