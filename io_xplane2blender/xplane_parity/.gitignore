@@ -1,4 +1,3 @@
-plugin/*.xpl
 plugin/*.obj
 plugin/*.exp
 plugin/*.lib

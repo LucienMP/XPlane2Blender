@@ -17,6 +17,7 @@ from .xplane_ops import _get_active_root
 from .xplane_props import *
 from .xplane_helpers import is_path_decal_lib
 from .xplane_utils import xplane_dataref_validation
+from . import xplane_parity_ops
 
 
 def dataref_problem_layout(layout: bpy.types.UILayout, path: str) -> None:
@@ -353,6 +354,7 @@ def scene_layout(layout: bpy.types.UILayout, scene: bpy.types.Scene):
     row.operator("xplane.open_export_log", icon="TEXT")
     row.operator("xplane.select_log_objects", icon="RESTRICT_SELECT_OFF")
     layout.row().operator("xplane.export_scene_report", icon="FILE_TEXT")
+    xplane_parity_ops.parity_layout(layout, bpy.context)
     row = layout.row()
     layout.row().prop(scene.xplane, "version")
 

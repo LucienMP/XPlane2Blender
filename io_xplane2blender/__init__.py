@@ -70,10 +70,13 @@ def menu_func(self, context):
 # Function: register
 # Registers the addon with all its classes and the menu function.
 def register():
+    from . import xplane_parity_ops
+
     xplane_export.register()
     xplane_props.register()
     xplane_ops.register()
     xplane_ops_dev.register()
+    xplane_parity_ops.register()
     xplane_ui.register()
     xplane_updater.register()
     bpy.types.TOPBAR_MT_file_export.append(menu_func)
@@ -82,9 +85,12 @@ def register():
 # Function: unregister
 # Unregisters the addon and all its classes and removes the entry from the menu.
 def unregister():
+    from . import xplane_parity_ops
+
     xplane_updater.unregister()
     xplane_export.unregister()
     xplane_ui.unregister()
+    xplane_parity_ops.unregister()
     xplane_ops.unregister()
     xplane_ops_dev.unregister()
     xplane_props.unregister()

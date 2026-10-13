@@ -72,6 +72,12 @@ def _make_argparse():
         action="store_true",
         dest="keep_going",
     )
+    test_selection.add_argument(
+        "--xplane",
+        help="Also run tests/xplane_visual, which start X-Plane (closed, Web API on; see io_xplane2blender/xplane_parity/README.md)",
+        default=False,
+        action="store_true",
+    )
 
     output_control = parser.add_argument_group("Output Control")
     output_control.add_argument(
@@ -194,6 +200,9 @@ def main(argv=None) -> int:
 
     exit_code = 0
     for root, dirs, files in os.walk("./tests"):
+        if "xplane_visual" in root.replace(os.sep, "/") and not argv.xplane:
+            # The X-Plane runs are opt-in: --xplane
+            continue
         filtered_files = list(
             filter(
                 lambda file: file.endswith(".test.py")
@@ -255,6 +264,8 @@ def main(argv=None) -> int:
             # can't start on Windows (#710)
             enviro = dict(os.environ)
             enviro["BLENDER_USER_SCRIPTS"] = blender_user_scripts()
+            if argv.xplane:
+                enviro["XP2B_XPLANE_TESTS"] = "1"
 
             # Run Blender, normalize output line endings because Windows is dumb
             # Blender's Python prints UTF-8; the locale codec (cp1252 on Windows)
