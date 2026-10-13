@@ -16,7 +16,7 @@ import dataclasses
 import itertools
 import operator
 from pprint import pprint
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 import bpy
 import mathutils
@@ -53,15 +53,17 @@ class NotExportableRootError(ValueError):
 
 
 def createFilesFromBlenderRootObjects(
-    scene: bpy.types.Scene, 
+    scene: bpy.types.Scene,
     view_layer: bpy.types.ViewLayer,
-    only_selected_roots: bool = False,    
+    only_selected_roots: bool = False,
+    on_root: Optional[Callable[[str], None]] = None,
 ) -> List["XPlaneFile"]:
     """
     Returns a list of all created XPlaneFiles from all valid roots found,
     ignoring any that could not be created.
 
-    view_layer is needed to test exportability
+    view_layer is needed to test exportability. on_root is called with each
+    exportable root's name before it is collected, for progress reporting
     """
     xplane_files: List["XPlaneFile"] = []
 
@@ -77,6 +79,8 @@ def createFilesFromBlenderRootObjects(
         )
     
     for potential_root in potential_roots:
+        if on_root and xplane_helpers.is_exportable_root(potential_root, view_layer):
+            on_root(potential_root.name)
         try:
             xplane_file = createFileFromBlenderRootObject(potential_root, view_layer)
         except NotExportableRootError as e:

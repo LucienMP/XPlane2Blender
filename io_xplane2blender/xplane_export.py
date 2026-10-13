@@ -14,6 +14,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 from . import xplane_library
 from .xplane_config import getDebug
+from . import xplane_helpers
 from .xplane_helpers import XPlaneLogger, logger
 from .xplane_types import xplane_file
 
@@ -136,6 +137,50 @@ def showLogDialog():
         bpy.ops.wm.call_menu(name="XPLANE_MT_xplane_export_log")
 
 
+class ExportProgress:
+    """
+    Blender's progress cursor and the status bar's text while exporting (#354).
+    Blender can't redraw panels during an operator, but it does update these
+    """
+
+    def __init__(self, context: bpy.types.Context):
+        self.window_manager = context.window_manager
+        self.workspace = context.workspace if context.window else None
+        self.total = 0
+        self.current = 0
+        self.started = False
+
+    def begin(self, total: int) -> None:
+        self.total = max(total, 1)
+        if self.window_manager and not bpy.app.background:
+            self.window_manager.progress_begin(0, self.total)
+            self.started = True
+
+    def step(self, text: str) -> None:
+        self.current += 1
+        logger.info(f"{text} ({self.current}/{self.total})")
+        if self.started:
+            self.window_manager.progress_update(min(self.current, self.total))
+        if self.workspace:
+            try:
+                self.workspace.status_text_set(
+                    f"XPlane2Blender: {text} ({self.current}/{self.total})"
+                )
+            except (AttributeError, RuntimeError):
+                self.workspace = None
+
+    def end(self) -> None:
+        if self.started:
+            self.window_manager.progress_end()
+            self.started = False
+        if self.workspace:
+            try:
+                self.workspace.status_text_set(None)
+            except (AttributeError, RuntimeError):
+                pass
+            self.workspace = None
+
+
 class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
     """Export to X-Plane Object file format (.obj)"""
 
@@ -170,6 +215,14 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
     # Parameters:
     #   context - Blender context object.
     def execute(self, context):
+        # A progress cursor and status text, so a long export doesn't look frozen (#354)
+        self._progress = ExportProgress(context)
+        try:
+            return self._execute(context)
+        finally:
+            self._progress.end()
+
+    def _execute(self, context):
         # prepare logging
         self._startLogging()
 
@@ -202,16 +255,28 @@ class EXPORT_OT_ExportXPlane(bpy.types.Operator, ExportHelper):
         bpy.context.scene.frame_set(frame=1)
         bpy.context.view_layer.update()
 
+        roots = xplane_helpers.get_exportable_roots_in_scene(
+            bpy.context.scene, bpy.context.view_layer
+        )
+        if self.only_selected_roots:
+            roots = [
+                root for root in roots
+                if isinstance(root, bpy.types.Object) and root.select_get()
+            ]
+        # One step to collect and one to write each root
+        self._progress.begin(2 * len(roots))
         xplaneFiles = xplane_file.createFilesFromBlenderRootObjects(
-            bpy.context.scene, 
+            bpy.context.scene,
             bpy.context.view_layer,
-            self.only_selected_roots            
+            self.only_selected_roots,
+            on_root=lambda name: self._progress.step(f"Collecting {name}"),
         )
         exported = 0
         # (layer settings, absolute path) of each OBJ written, for library.txt
         self._written = []
         try:
             for xplaneFile in xplaneFiles:
+                self._progress.step(f"Writing {xplaneFile.filename}")
                 if not xplaneFile.get_xplane_objects():
                     logger.warn(f"{xplaneFile.filename} has nothing to export, skipped")
                     continue
