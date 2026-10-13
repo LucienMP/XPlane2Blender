@@ -125,6 +125,11 @@ def run(name):
         shutil.copy(os.path.join(HERE, "dsf_empty" if name == "none" else "dsf_full", "+47-124.dsf"), dsf)
         if name != "none":
             shutil.copy(os.path.join(HERE, "objects", f"{name}.obj"), os.path.join(PACK, "objects", "test.obj"))
+    running = subprocess.run(["tasklist", "/FI", "IMAGENAME eq X-Plane.exe"], capture_output=True,
+                             text=True, errors="replace").stdout
+    if "X-Plane.exe" in running:
+        raise SystemExit("ERROR: X-Plane is already running. Close it first: a second instance can't "
+                         "use the Web API, and the flight request would change the running session")
     for f in ("log.txt", "datarefs.tsv"):
         p = os.path.join(PLUGIN, f)
         if os.path.exists(p):

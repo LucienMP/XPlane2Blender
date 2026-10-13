@@ -1,0 +1,13 @@
+{
+  "fov_deg": 60,
+  "fov_axis": "horizontal",
+  "fill": 0.6,
+  "views": [
+    {"name": "front", "azimuth": 0, "elevation": 10},
+    {"name": "right", "azimuth": 90, "elevation": 10},
+    {"name": "back", "azimuth": 180, "elevation": 10},
+    {"name": "left", "azimuth": 270, "elevation": 10},
+    {"name": "iso", "azimuth": 45, "elevation": 35},
+    {"name": "top", "azimuth": 20, "elevation": 70}
+  ]
+}
