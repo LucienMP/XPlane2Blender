@@ -273,6 +273,11 @@ class XPlaneFile:
         # Dataref paths already warned about, see checkDataref
         self.warned_datarefs: Set[str] = set()
 
+        # Objects written in another object's ELSE / ELSE IF (#284):
+        # the IF object's name -> its alternatives, ELSE IFs first, the ELSE last
+        self.else_objects: Dict[str, List[XPlaneObject]] = {}
+        self.else_object_names: Set[str] = set()
+
         # LOD buckets for objects in none, set when writing LODs (#730)
         self._lod_fallback: Tuple[bool, bool, bool, bool] = (False,) * 4
 
@@ -807,6 +812,67 @@ class XPlaneFile:
                 }:
                     self.checkDataref(manip.dataref2, where)
 
+    def collectElseObjects(self) -> None:
+        """
+        Pairs each object with an "Else Of" setting with the object whose IF it is
+        the alternative to (#284), checking that the OBJ can express it. Errors are
+        logged; the pairs go in self.else_objects
+        """
+        self.else_objects.clear()
+        self.else_object_names.clear()
+        conditions_of = self.commands._object_conditions
+        for xplane_object in self.get_xplane_objects():
+            target = xplane_object.blenderObject.xplane.else_of
+            if target is None or xplane_object.export_animation_only:
+                continue
+            name = xplane_object.blenderObject.name
+            target_bone = self._bl_obj_name_to_bone.get(target.name)
+            target_object = target_bone.xplaneObject if target_bone else None
+            if target_object is None or target_object.export_animation_only:
+                logger.error(
+                    f"{name}'s Else Of object '{target.name}' isn't exported in this OBJ"
+                )
+            elif target.xplane.else_of is not None:
+                logger.error(
+                    f"{name}'s Else Of object '{target.name}' is itself an Else object."
+                    " Point both at the object that has the IF condition"
+                )
+            elif len(conditions_of(target_object)) != 1:
+                logger.error(
+                    f"'{target.name}' must have exactly one condition, counting its material's,"
+                    f" for {name} to be its Else: it has {len(conditions_of(target_object))}"
+                )
+            elif len(conditions_of(xplane_object)) > 1:
+                logger.error(
+                    f"{name} is an Else object, so it can have at most one condition, counting"
+                    f" its material's, which makes it an ELSE IF"
+                )
+            elif xplane_object.xplaneBone.parent is not target_bone.parent:
+                logger.error(
+                    f"{name} must have the same parent as its Else Of object '{target.name}',"
+                    " so that both are written in one IF block"
+                )
+            elif target_bone.isAnimated() or len(target_bone.getAnimAttributes()) > 0:
+                logger.error(
+                    f"'{target.name}' is animated, so {name} can't be its Else: the ELSE"
+                    " would be inside that animation. Animate a parent of both instead"
+                )
+            else:
+                self.else_objects.setdefault(target.name, []).append(xplane_object)
+                self.else_object_names.add(name)
+
+        for target_name, alternatives in self.else_objects.items():
+            # ELSE IF branches first, the one ELSE last
+            alternatives.sort(
+                key=lambda o: (not conditions_of(o), o.weight, o.name)
+            )
+            unconditional = [o.name for o in alternatives if not conditions_of(o)]
+            if len(unconditional) > 1:
+                logger.error(
+                    f"'{target_name}' has {len(unconditional)} Else objects without a condition"
+                    f" ({', '.join(unconditional)}). Only one can be the ELSE, give the others a condition"
+                )
+
     def validateOptions(self) -> bool:
         if self.options.texture_normal and self.options.texture_map_normal:
             logger.error(f'"Normal / Specular" and "Normal" provided in "{self.options.name}", use only one.')
@@ -925,6 +991,9 @@ class XPlaneFile:
 
         self.warnAnimatedInstancedObjects()
         self.validateDatarefs()
+        self.collectElseObjects()
+        if logger.hasErrors():
+            return ""
 
         o = ""
         o += self.header.write()

@@ -2039,6 +2039,17 @@ def conditions_layout(
         subrow = subbox.row()
         subrow.prop(attr, "value")
 
+    if op_type == "object":
+        # ELSE / ELSE IF (#284)
+        layout.row().prop(could_have_conditions.xplane, "else_of")
+        target = could_have_conditions.xplane.else_of
+        if target:
+            branch = "ELSE IF" if could_have_conditions.xplane.conditions else "ELSE"
+            layout.row().label(
+                text=f"Written in the {branch} of '{target.name}', which needs one condition",
+                icon="INFO",
+            )
+
 
 def lod_layout(layout: bpy.types.UILayout, obj: bpy.types.Object) -> None:
     row = layout.row()

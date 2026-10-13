@@ -126,6 +126,8 @@ class XPlaneCommands:
 
         # Attribute states saved before each open IF, see _writeXPlaneObjectPrefix
         self._states_before_conditions: List[Dict[str, Any]] = []
+        # The LOD bucket being written, for objects written in an ELSE (#284)
+        self._lod_bucket_index: Optional[int] = None
 
     def write(self, *, lod_bucket_index: Optional[int]) -> str:
         """
@@ -139,6 +141,7 @@ class XPlaneCommands:
             2,
             3,
         }, f"LOD bucket index ({lod_bucket_index}) must be None or a real bucket index"
+        self._lod_bucket_index = lod_bucket_index
         o = ""
         o += self.writeXPlaneBone(self.xplaneFile.rootBone, lod_bucket_index)
 
@@ -159,9 +162,17 @@ class XPlaneCommands:
             3,
         }, f"LOD bucket index ({lod_bucket_index}) must be None or a real bucket index"
         o = ""
+        xplaneObject = xplaneBone.xplaneObject
+        if (
+            xplaneObject
+            and xplaneObject.name in self.xplaneFile.else_object_names
+            and not getattr(xplaneObject, "writing_as_else", False)
+        ):
+            # Written in its Else Of object's IF block instead (#284)
+            return o
+
         o += xplaneBone.writeAnimationPrefix()
 
-        xplaneObject = xplaneBone.xplaneObject
         xplaneObjectWritten = False
 
         if xplaneObject and not xplaneObject.export_animation_only:
@@ -195,6 +206,14 @@ class XPlaneCommands:
     def _writeXPlaneObjectPrefix(self, xplaneObject):
         o = ""
 
+        if getattr(xplaneObject, "writing_as_else", False):
+            # Its ELSE / ELSE IF line is already written, see _writeXPlaneObjectSuffix
+            try:
+                o += xplaneObject.write()
+            except xplane_helpers.UnwriteableXPlaneType:
+                pass
+            return o
+
         # X-Plane skips everything inside a false IF, so attributes written there
         # may or may not be in effect after the ENDIF. Remember the state before
         # it, to mark what changed as unknown afterwards
@@ -216,6 +235,14 @@ class XPlaneCommands:
     def _writeXPlaneObjectSuffix(self, xplaneObject: xplane_object.XPlaneObject):
         o = ""
 
+        if getattr(xplaneObject, "writing_as_else", False):
+            # The IF object's suffix closes the block
+            return o
+
+        alternatives = self.xplaneFile.else_objects.get(xplaneObject.name, [])
+        if alternatives:
+            return self._writeElseBranches(xplaneObject, alternatives)
+
         # close material conditions
         if hasattr(xplaneObject, "material"):
             o += self._writeConditions(
@@ -233,6 +260,46 @@ class XPlaneCommands:
                     # the next object needing it, and reset by the next one that doesn't
                     self.written[name] = UNKNOWN_ATTRIBUTE_STATE
 
+        return o
+
+    def _writeElseBranches(
+        self,
+        xplaneObject: xplane_object.XPlaneObject,
+        alternatives: List[xplane_object.XPlaneObject],
+    ) -> str:
+        """
+        Closes xplaneObject's single IF with ELSE IF / ELSE branches holding its
+        alternatives (#284). Each branch starts from the attribute state before
+        the IF, since X-Plane runs only one of them, and anything a branch changed
+        is unknown afterwards
+        """
+        o = ""
+        indent = xplaneObject.xplaneBone.getIndent()
+        before = self._states_before_conditions.pop()
+        end_states = [dict(self.written)]
+        for alternative in alternatives:
+            self.written = dict(before)
+            conditions = self._object_conditions(alternative)
+            if conditions:
+                condition = conditions[0]
+                o += f"{indent}ELSE IF {'' if condition.value else 'NOT '}{condition.variable}\n"
+            else:
+                o += f"{indent}ELSE\n"
+            alternative.writing_as_else = True
+            try:
+                o += self.writeXPlaneBone(alternative.xplaneBone, self._lod_bucket_index)
+            finally:
+                alternative.writing_as_else = False
+            end_states.append(dict(self.written))
+        o += f"{indent}ENDIF\n"
+
+        self.written = dict(before)
+        for name in set(before).union(*end_states):
+            if any(
+                state.get(name, _MISSING) != before.get(name, _MISSING)
+                for state in end_states
+            ):
+                self.written[name] = UNKNOWN_ATTRIBUTE_STATE
         return o
 
     def writeAttribute(
