@@ -57,6 +57,12 @@ class TestTextureChecks(XPlaneTestCase):
     def test_power_of_two_png_passes(self) -> None:
         self.assertEqual(self._export_with(texture=str(WHITE_128)), [])
 
+    def test_blend_relative_path_passes(self) -> None:
+        # '//' is the .blend folder, or the working directory for an unsaved file. On
+        # Windows, Path('//x.png').suffix is '' (a UNC share), which read as "not a PNG"
+        relative = "//" + os.path.relpath(WHITE_128, os.getcwd()).replace("\\", "/")
+        self.assertEqual(self._export_with(texture=relative), [])
+
     def test_missing_texture_warns(self) -> None:
         missing = str(self.tmp / "not_here.png")
         warnings = self._export_with(texture=missing)

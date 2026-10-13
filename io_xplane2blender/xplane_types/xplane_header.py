@@ -1090,7 +1090,8 @@ class XPlaneHeader:
         missing on disk, not a PNG/DDS inside, or not a power of two in each dimension
         """
         filename = self.xplaneFile.filename
-        suffix = Path(res_path).suffix.lower()
+        # Not Path().suffix: on Windows it reads a leading '//' as a UNC share and gives ''
+        suffix = os.path.splitext(res_path)[1].lower()
         if suffix == ".dcl":
             # A decal library, not an image
             return
