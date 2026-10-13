@@ -1,4 +1,16 @@
-# XPlane2Blender 5.0: Blender 5 support, open pull requests, and fixes for 30 issues
+# XPlane2Blender 5.0: Blender 5 support, open pull requests, fixes for 44 issues, and a check in X-Plane
+
+## In plain words
+
+- **It works on Blender 5.** Before this, any animated model failed to export.
+- **Seven community pull requests are included**, each under its author's name.
+- **44 open issues are closed: bugs and feature requests.** Animation on bones exports again, removing a dataref no longer breaks the animation of the next one, levels of detail keep their settings, and mirrored parts are no longer inside out.
+- **The exporter warns about more mistakes before X-Plane finds them:** misspelt datarefs, a missing `[0]` on an array dataref, missing or odd-sized textures, a scene unit scale that isn't metres, and models X-Plane won't instance.
+- **Small things that save time:** after a failed export, the objects the errors name are selected and the log opens with one click; a progress cursor during long exports; a search list for light names; arrows to reorder datarefs.
+- **Smaller, faster OBJs:** animations that don't actually move are written as one fixed step, and with Optimize on, triangles are ordered so the graphics card reuses more of its work.
+- **`ELSE` and `ELSE IF` conditions**, so one object can replace another when a condition is off.
+- **Check in X-Plane:** a button that exports the model, photographs it in X-Plane, renders the same views in Blender and shows them side by side with the differences in red. It checks shapes, textures and lights.
+- **Tested:** 704 automated tests pass on Blender 5.2, a GitHub Actions workflow runs them on every push, and the changes that affect what X-Plane draws were checked in X-Plane 12 itself.
 
 ## Summary
 
@@ -8,8 +20,8 @@ The base of the update was taken from https://forums.x-plane.org/files/file/9949
 
 This pull request makes XPlane2Blender work on Blender 5. It also:
 - includes 7 of the 9 open pull requests, with each author kept as the commit author;
-- fixes 29 open issues, and part of #284;
-- adds some warnings and two small features;
+- closes 44 open issues: 28 bugs from the issue list, #747 found by a code audit, #284 completed, and 14 feature requests; #725 is partly fixed;
+- adds warnings, small features, export optimisations, and a visual check against X-Plane;
 - was tested with the full test suite on Blender 5.2, and many changes were also checked in X-Plane 12 itself.
 
 Every change is explained in more detail, with links to the commits, in [REVIEW-5.0.md](REVIEW-5.0.md).
@@ -18,6 +30,9 @@ Every change is explained in more detail, with links to the commits, in [REVIEW-
 - **Blender version:** `bl_info` now requires Blender 5.0. The code still reads older (non-slotted) Actions, so lowering this is possible if you want to keep Blender 4.x.
 - **Fork-specific files:** the README and REVIEW-5.0.md were written for the fork, and the README points the bug tracker to it. You may want to drop or rewrite those parts.
 - **Some exported files change.** The list is under [Changes to exported OBJs](#changes-to-exported-objs).
+- **A compiled file is committed:** `io_xplane2blender/xplane_parity/plugin/win.xpl`, the X-Plane plugin Check in X-Plane needs (200 KB, Windows). Its source and build script are next to it, and the CI workflow rebuilds it for release packages.
+- **New files outside the add-on:** `.github/workflows/ci.yml` (tests, plugin build, release packages) and an opt-in test folder, `tests/xplane_visual`, which starts X-Plane.
+- **Data model version 125:** new properties (the light search window, Else Of). Older files update as usual.
 
 ## Pull requests included
 
@@ -144,10 +159,9 @@ Each fix is listed as **Problem**, **Fix** and **Tests**.
 - **Fix:** a Wheel setting, written as `ATTR_manip_wheel`.
 - **Tests:** a new test. The export loads in X-Plane 12 without errors.
 
-**#284: conditions** (partly done)
+**#284: conditions**
 - **Problem:** the condition list was missing `SCENERY_SHADOWS`, the one condition Laminar's own scenery uses (a fake shadow under `IF NOT SCENERY_SHADOWS`).
-- **Fix:** **Scenery Shadows** was added. The tooltips say that HDR and Version 10.x are always on in X-Plane 12.
-- **Not done:** `ELSE` / `ELSE IF`. X-Plane 12 accepts them, but none of 24,714 OBJs in an X-Plane 12 install uses them.
+- **Fix:** **Scenery Shadows** was added. The tooltips say that HDR and Version 10.x are always on in X-Plane 12. `ELSE` and `ELSE IF` came later, under [Enhancements](#x-plane-features).
 - **Tests:** a new test. In X-Plane 12, both `IF` and `IF NOT` versions behave correctly.
 
 ### UI and tools
@@ -161,6 +175,88 @@ Each fix is listed as **Problem**, **Fix** and **Tests**.
 - **Fix:** the environment is kept, and a link to the add-on is made in the temp folder when needed.
 - **Tests:** `python tests.py` runs the whole suite on Windows: 628 test cases, 0 failures.
 
+## Enhancements (feature requests)
+
+These were open feature requests. Each is small and independent.
+
+### New checks when exporting
+
+**#344, #68, #345: datarefs are checked**
+- **Problem:** a misspelt dataref, or an array dataref without `[n]`, exports without complaint and simply doesn't work in X-Plane.
+- **Change:** the export checks every dataref the OBJ uses (animations, show/hide on objects and bones, lights, light levels, manipulators, thermal sources, wipers) against X-Plane 12.4's `DataRefs.txt`, now bundled. It warns, once per OBJ, about a `sim/` dataref that isn't in the file, an array used without an element, an element past the end, an element on a non-array, and a space in the path. The same hint shows under the dataref field in the panels. Picking an array dataref in the search window fills in `[0]`. A plugin's own datarefs can't be in the file, so only their shape is checked.
+- **Tests:** a new test with 14 cases. The parser now reads `float[56][10]` and `byte[]`, which X-Plane 12.4's file uses.
+
+**#403: textures are checked**
+- **Change:** every texture, decal, thermal and wiper texture path warns when it isn't a PNG or DDS, isn't on disk, doesn't start like a PNG or DDS file, or isn't a power of two in each dimension. Only the file's header is read.
+- **Tests:** a new test with 8 cases, including a `//` path, which Windows read as a network share at first.
+
+**#466: unit scale**
+- **Change:** a scene Unit Scale other than 1 warns on export and in the Scene panel. OBJ coordinates are Blender units read as metres, so at 0.01 a length Blender shows as 1 m exports as 100 m.
+- **Tests:** in the reorder test below.
+
+### Working with the exporter
+
+**#140, #239: find the problem after a failed export**
+- **Change:** a failed export selects the objects its errors name (a bone's name selects its armature). The error popup shows how many errors and warnings there were and the first three, with **Open Export Log** and **Select Objects In Log** buttons; both are also in the Scene panel.
+- **Tests:** a new test.
+
+**#354: export progress**
+- **Change:** the mouse cursor shows Blender's progress indicator and the status bar says which root is being collected or written. Cancelling isn't possible: Blender can't redraw during an operator.
+- **Tests:** a new test.
+
+**#561: light name search**
+- **Change:** a search window next to the light Name field, like the dataref one, listing every light in `lights.txt` with its parameters, and which old lights don't work as Automatic lights.
+- **Tests:** a new test.
+
+**#401: reorder datarefs**
+- **Change:** up and down arrows next to each dataref on the Object and Bone tabs. A dataref keeps its keyframes when it moves. Show/Hide are written, and X-Plane applies them, in this order.
+- **Tests:** a new test, for objects and bones.
+
+### Smaller, faster OBJs
+
+**#253, #653, #562: animations that don't move**
+- **Problem:** with two datarefs on one object, each dataref's keyframe table samples the object's position at its own keyframes. When only one of them moves it, the other's table has the same value on every row, and X-Plane still evaluates it every frame.
+- **Change:** such a table is written as one fixed `ANIM_trans` or `ANIM_rotate` in the same place. By the OBJ spec it's the same transform. An all-zero table is dropped, as before. #235 is partly covered by this.
+- **Tests:** a new test with 4 cases.
+
+**#134: triangle order**
+- **Change:** with **Optimize** on, each object's triangles are reordered for the graphics card's vertex cache (Tom Forsyth's method). The same triangles are drawn with fewer vertex shader runs: a shuffled 180,000-triangle grid went from 3.0 to 0.67 cache misses per triangle. It costs about 2 seconds per 100,000 triangles at export.
+- **Tests:** a new test checks the same triangles come out, wound the same way, with fewer misses. Two fixtures were regenerated after a script confirmed they hold the same triangles.
+
+### X-Plane features
+
+**#284: `ELSE` and `ELSE IF`** (completes the issue)
+- **Change:** an object's new **Else Of** setting names the object it's the alternative to. It's written in the `ELSE` of that object's `IF`, or as an `ELSE IF` when it has a condition of its own; several alternatives make a chain ending in one `ELSE`. The `IF` object needs exactly one condition and no animation, and both need the same parent; otherwise the export says why. Attributes are tracked separately in each branch.
+- **Tests:** a new test with 8 cases. X-Plane 12.4.4 accepts `ELSE`, `ELSE IF` and `ELSE IF NOT`.
+
+## Check in X-Plane
+
+A button in the Scene panel answers one question: **does X-Plane draw the exported OBJ the way Blender shows the model?**
+
+How a designer uses it:
+1. Once: set the X-Plane folder in the add-on's preferences, and allow incoming traffic in X-Plane's network settings.
+2. Close X-Plane, select the root, pose the model, and press **Check in X-Plane**. Choose a check: Shapes, Textures or Lights.
+3. About three minutes later a window opens: one row per camera view, Blender on the left, X-Plane in the middle, differences in red on the right. The Scene panel says PASS or FAIL and which lines failed.
+
+What happens in between: the add-on exports a copy of the scene, starts X-Plane, and a small plugin places the model in a black box at midnight, sets its datarefs and takes screenshots from six angles. Blender renders the same six views, and the pictures are compared colour by colour. Nothing in the .blend changes. During the check, other X-Plane plugins are moved aside so their windows don't appear in the screenshots, and put back afterwards.
+
+The three checks:
+- **Shapes:** every material becomes a flat colour, then shape, position, animation pose, show/hide and face direction are compared exactly.
+- **Textures:** the model keeps its texture, which checks the UV mapping. X-Plane changes colours a little, so this check is loose.
+- **Lights:** each light's position and colour. X-Plane's glow and spill have nothing to compare with in Blender, so spill is only reported as present or not.
+
+It's also a command-line tool (`io_xplane2blender/xplane_parity/parity.py`) and an opt-in part of the test suite: `python tests.py --xplane`. The details, including what went wrong on the way there, are in [io_xplane2blender/xplane_parity/README.md](io_xplane2blender/xplane_parity/README.md). On the sample model, all three checks pass: shapes match to the pixel, textures agree on 91 to 93% of the model, and the light is within 8 pixels. The check also found a real modelling mistake while it was being built: faces wound inside out, which Blender draws and X-Plane hides.
+
+## Continuous integration and release packages
+
+`.github/workflows/ci.yml` runs on every push:
+- the whole test suite, on Windows with Blender 5.2.2;
+- a build of the X-Plane plugin from its source, with Laminar's SDK;
+- the add-on zip, made by `mkbuild.py` with the freshly built plugin;
+- on a tag starting with `v`, a GitHub release with that zip attached.
+
+The X-Plane checks can't run there, since they need X-Plane installed.
+
 ## Other changes
 
 - **Blender 5 compatibility:**
@@ -168,12 +264,14 @@ Each fix is listed as **Problem**, **Fix** and **Tests**.
   - The wiper gradient bake works with current Cycles.
   - Python 3.12+ warnings are fixed.
 - **`lights.txt`:** the bundled copy is now X-Plane 12.4.4's, so the 13 lights added since, such as the runway inset lights, are recognised.
+- **`DataRefs.txt`:** the bundled copy is now X-Plane 12.4's, with 389 datarefs added since the old one.
 - **New feature, publishing OBJs in `library.txt`:**
   - each root can be published under a library path, optionally by season (`EXPORT_SEASON`);
   - only a marked block of `library.txt` is changed;
   - seasons were checked in X-Plane 12 in both hemispheres.
 - **Test helper:** `XP2B_TEST_OUTPUT_DIR` saves every test's output, for comparing exporter changes and regenerating fixtures.
-- **`tools/xplane12_instancing_test`:** a tool that runs these checks in X-Plane itself.
+- **`tools/xplane12_instancing_test`:** a tool that runs the instancing and lighting checks in X-Plane itself. It now refuses to start while X-Plane is running.
+- **`tests.py`:** `--xplane` adds the X-Plane checks; one test that only passed with the repository on drive C: now passes anywhere.
 
 ## Changes to exported OBJs
 
@@ -184,14 +282,18 @@ Most files export exactly as before. These change:
 - **Files with Optimize on:** fewer vertices, with identical geometry (#709).
 - **Some files:** redundant `ATTR_shiny_rat 0` lines are gone (#439).
 - **X-Plane 12 targets with custom spill lights:** the size is written as an intensity in candela (`5000cd`).
+- **Objects with a second dataref that doesn't move them:** that dataref's keyframe table becomes one fixed `ANIM_trans` or `ANIM_rotate` (#253).
+- **Files with Optimize on:** triangles are in a different order, the same triangles (#134).
+- **Files that use the new Else Of setting:** `ELSE` / `ELSE IF` lines (#284). Nothing changes for files that don't.
 
 ## Testing
 
-- **Blender 5.2.2 LTS:** all 175 test files pass, including 15 new ones. Upstream's own `tests.py` also passes on Windows: 628 test cases.
+- **Blender 5.2.2 LTS:** all 189 test files pass, 704 test cases, including 26 new files. Upstream's own `tests.py` also passes on Windows, and the same suite runs in GitHub Actions on every push.
 - **Before this PR**, upstream `master` passed 35 of 160 test files on Blender 5.2.
-- **X-Plane 12.4.4 and 12.4.3:** instancing, light intensities, conditions, seasons and the fixes above were checked in the sim with the tool in `tools/xplane12_instancing_test`. Its README has every result.
+- **X-Plane 12.4.4 and 12.4.3:** instancing, light intensities, conditions, seasons and the fixes above were checked in the sim with the tool in `tools/xplane12_instancing_test`. Its README has every result. Check in X-Plane passed all three of its checks on its sample model in X-Plane 12.4.3.
 - **UI:** every X-Plane panel was drawn without errors for a mesh, a light and an armature.
-- **Not tested:** Blender versions other than 5.2, and macOS and Linux.
+- **Not tested:** Blender versions other than 5.2, and macOS and Linux (the Check in X-Plane plugin is Windows only).
+- **Not yet checked in X-Plane:** the static animation change (#253) and `ELSE` chains (#284) exported by XPlane2Blender. Check in X-Plane can now do this in a few minutes each.
 
 ## Not fixed
 
@@ -205,7 +307,7 @@ After the fixes above, the whole add-on was read looking for unreported bugs. Th
 
 ## Issues closed by this PR
 
-Fixes #758, fixes #754, fixes #743, fixes #762, fixes #190, fixes #763, fixes #751, fixes #752, fixes #704, fixes #565, fixes #741, fixes #473, fixes #577, fixes #370, fixes #738, fixes #368, fixes #489, fixes #621, fixes #730, fixes #643, fixes #516, fixes #709, fixes #439, fixes #285, fixes #515, fixes #279, fixes #766, fixes #710, fixes #747
+Fixes #758, fixes #754, fixes #743, fixes #762, fixes #190, fixes #763, fixes #751, fixes #752, fixes #704, fixes #565, fixes #741, fixes #473, fixes #577, fixes #370, fixes #738, fixes #368, fixes #489, fixes #621, fixes #730, fixes #643, fixes #516, fixes #709, fixes #439, fixes #285, fixes #515, fixes #279, fixes #766, fixes #710, fixes #747, fixes #284, fixes #344, fixes #68, fixes #345, fixes #403, fixes #466, fixes #140, fixes #239, fixes #354, fixes #561, fixes #401, fixes #253, fixes #653, fixes #562, fixes #134
 
 Closes #765, closes #767, closes #753, closes #759, closes #760, closes #761, closes #764
 
