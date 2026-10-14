@@ -6,8 +6,8 @@
 
 This is a fork of the original XPlane2Blender for Blender 4.x, updated to 5.x from [X-Plane to Blender 5.0 on X-Plane Forums](https://forums.x-plane.org/files/file/99499-xplane2blender-v5-unnofficial-for-blender-5/) with additional updates and PR merged into it.
 
-1. Check README.PR.md
-2. Check README-5.0.md
+1. [README.PR.md](README.PR.md): the pull request text for upstream, with a plain-English overview
+2. [REVIEW-5.0.md](REVIEW-5.0.md): where every change came from, what each does, and what's still open
 
 
 # Introduction
