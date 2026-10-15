@@ -189,6 +189,8 @@ If you have Python installed (hopefully matching Blender's internal interpreter 
 
 This will run all tests until the end or a failure occurs. Only detailed logs will be printed for the failed test. See ``--help`` to show all flags and what they do.
 
+``python tests_parallel.py`` runs the same tests several at a time, in about a minute instead of several. [TESTING.md](TESTING.md) explains both runners, their options, and the X-Plane checks.
+
 Use ``--blender PATH`` when Blender isn't on your PATH, e.g. ``python tests.py --blender "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -c``. On Windows, where git usually checks out the ``addons/modules`` symlink as a plain file, the runner makes a junction for it in your temp folder.
 
 To see what an exporter change does to every test's output, set ``XP2B_TEST_OUTPUT_DIR`` to a folder: each test that compares against a fixture also saves its output there, named after the fixture's path. Run once before and once after the change, then compare the folders. The same files can replace fixtures when a change of output is intended.
