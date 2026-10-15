@@ -19,13 +19,13 @@ jobs:
     name: Headless test suite
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Cache Blender
         id: cache-blender
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: blender
           key: blender-${{ env.BLENDER_VERSION }}-windows
@@ -45,18 +45,21 @@ jobs:
     name: X-Plane plugin (win.xpl)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/checkout@v5
       - name: Download the X-Plane SDK
         shell: pwsh
         run: |
           Invoke-WebRequest "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -OutFile XPSDK430.zip
           Expand-Archive XPSDK430.zip -DestinationPath xpsdk
       - name: Build
+        # Visual Studio's own environment script: ilammy/msvc-dev-cmd has no Node 24 version
         shell: cmd
         working-directory: io_xplane2blender/xplane_parity/plugin
-        run: cl /nologo /O2 /LD /DIBM=1 /DXPLM200=1 /DXPLM210=1 /DXPLM300=1 /DXPLM301=1 /DXPLM303=1 /DXPLM400=1 /DXPLM410=1 /DXPLM420=1 /DXPLM430=1 /I"%GITHUB_WORKSPACE%\xpsdk\SDK\CHeaders\XPLM" xp2b_parity.c /link "%GITHUB_WORKSPACE%\xpsdk\SDK\Libraries\Win\XPLM_64.lib" /OUT:win.xpl
-      - uses: actions/upload-artifact@v4
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSINSTALL=%%i
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          cl /nologo /O2 /LD /DIBM=1 /DXPLM200=1 /DXPLM210=1 /DXPLM300=1 /DXPLM301=1 /DXPLM303=1 /DXPLM400=1 /DXPLM410=1 /DXPLM420=1 /DXPLM430=1 /I"%GITHUB_WORKSPACE%\xpsdk\SDK\CHeaders\XPLM" xp2b_parity.c /link "%GITHUB_WORKSPACE%\xpsdk\SDK\Libraries\Win\XPLM_64.lib" /OUT:win.xpl
+      - uses: actions/upload-artifact@v6
         with:
           name: win.xpl
           path: io_xplane2blender/xplane_parity/plugin/win.xpl
@@ -66,13 +69,13 @@ jobs:
     needs: [tests, plugin]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: win.xpl
           path: io_xplane2blender/xplane_parity/plugin
@@ -86,13 +89,13 @@ jobs:
           git commit -q -m "CI: built plugin" --allow-empty
           python mkbuild.py --dest-folder builds
           Get-ChildItem builds
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: io_xplane2blender
           path: builds/*.zip
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: builds/*.zip
           generate_release_notes: true
