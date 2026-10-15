@@ -222,7 +222,35 @@ class XPlane:
             time.sleep(2)
         return f"exited {proc.returncode}"
 
-    def run(self, work, view_names, set_aside=True):
+    def set_preferences(self, prefs):
+        """
+        Sets X-Plane.prf entries for one run, e.g. renopt_shadow_quality_04=0 (scenery shadows
+        off: settings.txt ties it to the SCENERY_SHADOWS condition). Returns the file's old text
+        """
+        path = os.path.join(self.folder, "Output", "preferences", "X-Plane.prf")
+        original = open(path, encoding="utf-8", errors="surrogateescape").read()
+        text = original
+        for item in prefs:
+            key, _, value = item.partition("=")
+            lines = text.split("\n")
+            for index, line in enumerate(lines):
+                if line.split(" ", 1)[0] == key:
+                    lines[index] = f"{key} {value}"
+                    break
+            else:
+                raise SystemExit(f"ERROR: X-Plane.prf has no {key}")
+            text = "\n".join(lines)
+            print(f"X-Plane preference for this run: {key} {value}", flush=True)
+        with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            f.write(text)
+        return original
+
+    def restore_preferences(self, original):
+        path = os.path.join(self.folder, "Output", "preferences", "X-Plane.prf")
+        with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            f.write(original)
+
+    def run(self, work, view_names, set_aside=True, prefs=()):
         """One X-Plane run: screenshots of the model in work/ become work/xplane_<view>.png"""
         self.check()
         if self.running():
@@ -243,6 +271,7 @@ class XPlane:
         start = time.time()
         if set_aside:
             self.set_aside_other_plugins()
+        original_prefs = self.set_preferences(prefs) if prefs else None
         try:
             proc = subprocess.Popen([self.exe], cwd=self.folder)
             result = self.start_flight(proc) or self.wait_for_exit(proc, start, len(view_names))
@@ -252,6 +281,8 @@ class XPlane:
                 result += ", force-closed"
         finally:
             self.restore_other_plugins()
+            if original_prefs is not None:
+                self.restore_preferences(original_prefs)
         for name, target in (("log.txt", "plugin_log.txt"),):
             if os.path.exists(os.path.join(self.plugin, name)):
                 shutil.copy(os.path.join(self.plugin, name), os.path.join(work, target))
@@ -314,16 +345,30 @@ def cmd_run(args):
         return 1
     with open(os.path.join(work, "views_resolved.json"), encoding="utf-8") as f:
         view_names = [v["name"] for v in json.load(f)["views"]]
+    if args.obj:
+        # Test this OBJ instead of the export (same views, booth and textures)
+        shutil.copy(os.path.abspath(args.obj), os.path.join(work, "model.obj"))
+        print(f"testing {args.obj} instead of the export", flush=True)
     if not args.skip_xplane:
-        XPlane(args.xplane).run(work, view_names, set_aside=not args.keep_plugins)
+        XPlane(args.xplane).run(work, view_names, set_aside=not args.keep_plugins, prefs=args.xplane_pref or ())
     first = os.path.join(work, f"xplane_{view_names[0]}.png")
     if not os.path.exists(first):
         raise SystemExit(f"ERROR: no {first}; run without --skip-xplane first")
     width, height = png_size(first)
-    status("rendering in Blender")
-    if blender(args.blender, "render", blend, args.root, work, "--mode", args.mode, "--size", f"{width}x{height}"):
-        status("failed: render")
-        return 1
+    if args.against:
+        # X-Plane against X-Plane: another run's screenshots stand in for Blender's renders
+        status("comparing with " + args.against)
+        for name in view_names:
+            shutil.copy(os.path.join(os.path.abspath(args.against), f"xplane_{name}.png"),
+                        os.path.join(work, f"blender_{name}.png"))
+    else:
+        status("rendering in Blender")
+        render_args = ["render", blend, args.root, work, "--mode", args.mode, "--size", f"{width}x{height}"]
+        for item in args.condition or []:
+            render_args += ["--condition", item]
+        if blender(args.blender, *render_args):
+            status("failed: render")
+            return 1
     status("comparing")
     code = blender(args.blender, "compare", work, "--mode", args.mode)
     status("done " + ("PASS" if code == 0 else "FAIL"))
@@ -332,9 +377,10 @@ def cmd_run(args):
 
 
 def cmd_sample(args):
-    blend = os.path.abspath(args.blend) if args.blend else os.path.join(HERE, "work", "sample", "sample.blend")
+    folder = "sample" if args.kind == "basic" else f"sample_{args.kind}"
+    blend = os.path.abspath(args.blend) if args.blend else os.path.join(HERE, "work", folder, "sample.blend")
     os.makedirs(os.path.dirname(blend), exist_ok=True)
-    return blender(args.blender, "sample", blend)
+    return blender(args.blender, "sample", blend, "--kind", args.kind)
 
 
 def main():
@@ -344,6 +390,8 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("sample")
     p.add_argument("--blend")
+    p.add_argument("--kind", choices=("basic", "static", "conditions"), default="basic",
+                   help="basic: the general sample; static: #253's static keyframe tables; conditions: #284's IF / ELSE chains")
     sub.add_parser("install")
     sub.add_parser("cleanup")
     p = sub.add_parser("run")
@@ -356,6 +404,10 @@ def main():
     p.add_argument("--name", help="work folder name under work/")
     p.add_argument("--skip-xplane", action="store_true", help="reuse the X-Plane screenshots already in the work folder")
     p.add_argument("--keep-plugins", action="store_true", help="don't set other plugins aside during the run")
+    p.add_argument("--condition", action="append", help="NAME=0|1: the state of an OBJ condition in this X-Plane run, for Blender's render")
+    p.add_argument("--xplane-pref", action="append", help="KEY=VALUE: an X-Plane.prf entry for this run only, e.g. renopt_shadow_quality_04=0")
+    p.add_argument("--obj", help="test this OBJ instead of the export")
+    p.add_argument("--against", help="compare with the X-Plane screenshots in this other work folder instead of Blender's renders")
     args = parser.parse_args()
     if args.command == "sample":
         return cmd_sample(args)

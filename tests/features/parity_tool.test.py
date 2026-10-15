@@ -130,6 +130,25 @@ class TestParityTool(XPlaneTestCase):
         self.assertFalse(ok, lines)
         self.assertTrue(any("missing" in l for l in lines), lines)
 
+    def test_compare_lights_flare_is_a_billboard(self) -> None:
+        """A flash caught at its peak: a red glow bigger than 2% of the picture with a white core"""
+        import numpy as np
+        from types import SimpleNamespace
+        a = np.zeros((60, 80, 3), dtype=np.float32)
+        a[28:33, 38:43] = (1, 0, 0)
+        b = np.zeros_like(a)
+        b[15:50, 25:60] = (0.7, 0.1, 0.05)  # the red glow, a quarter of the picture
+        b[29:34, 39:44] = (1, 1, 1)  # its white core
+        keep = np.ones((60, 80), dtype=bool)
+        ok, _ = self.pb.compare_lights(a, b, keep, SimpleNamespace(max_light_offset=30), lines := [])
+        self.assertTrue(ok, lines)
+        self.assertIn("X-Plane 1 billboards, 0 spill", lines[0])
+        # Without a core it's a spill on the floor
+        b[29:34, 39:44] = (0.7, 0.1, 0.05)
+        ok, _ = self.pb.compare_lights(a, b, keep, SimpleNamespace(max_light_offset=30), lines := [])
+        self.assertFalse(ok, lines)
+        self.assertIn("X-Plane 0 billboards, 1 spill", lines[0])
+
     def test_sample_scene_and_export_modes(self) -> None:
         """The sample builds, and each mode exports it: the OBJ has the mode's textures"""
         blend = os.path.join(self.tmp, "parity_sample", "sample.blend")
@@ -154,7 +173,7 @@ class TestParityTool(XPlaneTestCase):
             self.assertIn(f"TEXTURE\t{texture}", obj)
             self.assertIn(f"TEXTURE_LIT\t{texture}", obj)
             # Lights only in the lights check, meshes in the others
-            self.assertEqual("LIGHT_NAMED\tairplane_beacon" in obj, mode == "lights")
+            self.assertEqual("LIGHT_NAMED\ttaxi_r" in obj, mode == "lights")
             self.assertEqual("TRIS" in obj, mode != "lights")
             self.assertTrue(os.path.exists(os.path.join(work, "VIEWS")))
             self.assertIn("sim/cockpit2/controls/flap_ratio 0.75", open(os.path.join(work, "DATAREFS")).read())

@@ -8,7 +8,7 @@
 - **The exporter warns about more mistakes before X-Plane finds them:** misspelt datarefs, a missing `[0]` on an array dataref, missing or odd-sized textures, a scene unit scale that isn't metres, and models X-Plane won't instance.
 - **Small things that save time:** after a failed export, the objects the errors name are selected and the log opens with one click; a progress cursor during long exports; a search list for light names; arrows to reorder datarefs.
 - **Smaller, faster OBJs:** animations that don't actually move are written as one fixed step, and with Optimize on, triangles are ordered so the graphics card reuses more of its work.
-- **`ELSE` and `ELSE IF` conditions**, so one object can replace another when a condition is off.
+- **`ELSE` conditions**, including "else if" chains, so one object can replace another when a condition is off.
 - **Check in X-Plane:** a button that exports the model, photographs it in X-Plane, renders the same views in Blender and shows them side by side with the differences in red. It checks shapes, textures and lights.
 - **Tested:** 704 automated tests pass on Blender 5.2, a GitHub Actions workflow runs them on every push, and the changes that affect what X-Plane draws were checked in X-Plane 12 itself.
 
@@ -226,8 +226,9 @@ These were open feature requests. Each is small and independent.
 ### X-Plane features
 
 **#284: `ELSE` and `ELSE IF`** (completes the issue)
-- **Change:** an object's new **Else Of** setting names the object it's the alternative to. It's written in the `ELSE` of that object's `IF`, or as an `ELSE IF` when it has a condition of its own; several alternatives make a chain ending in one `ELSE`. The `IF` object needs exactly one condition and no animation, and both need the same parent; otherwise the export says why. Attributes are tracked separately in each branch.
-- **Tests:** a new test with 8 cases. X-Plane 12.4.4 accepts `ELSE`, `ELSE IF` and `ELSE IF NOT`.
+- **Change:** an object's new **Else Of** setting names the object it's the alternative to. It's written in the `ELSE` of that object's `IF`, with a nested `IF` when it has a condition of its own; several alternatives make a chain ending in one `ELSE`. The `IF` object needs exactly one condition and no animation, and both need the same parent; otherwise the export says why. Attributes are tracked separately in each branch.
+- **Why not `ELSE IF`:** Check in X-Plane found that X-Plane 12.4.3 drew an `ELSE IF` branch even when the `IF` before it was taken. Plain `ELSE` and nested `IF`s behave, so those are what's written.
+- **Tests:** a new test with 8 cases, and Check in X-Plane with scenery shadows on and off: X-Plane drew exactly the branches Blender expected.
 
 ## Check in X-Plane
 
@@ -284,7 +285,7 @@ Most files export exactly as before. These change:
 - **X-Plane 12 targets with custom spill lights:** the size is written as an intensity in candela (`5000cd`).
 - **Objects with a second dataref that doesn't move them:** that dataref's keyframe table becomes one fixed `ANIM_trans` or `ANIM_rotate` (#253).
 - **Files with Optimize on:** triangles are in a different order, the same triangles (#134).
-- **Files that use the new Else Of setting:** `ELSE` / `ELSE IF` lines (#284). Nothing changes for files that don't.
+- **Files that use the new Else Of setting:** `ELSE` lines and nested `IF`s (#284). Nothing changes for files that don't.
 
 ## Testing
 
@@ -293,9 +294,11 @@ Most files export exactly as before. These change:
 - **X-Plane 12.4.4 and 12.4.3:** instancing, light intensities, conditions, seasons and the fixes above were checked in the sim with the tool in `tools/xplane12_instancing_test`. Its README has every result. Check in X-Plane passed all three of its checks on its sample model in X-Plane 12.4.3.
 - **UI:** every X-Plane panel was drawn without errors for a mesh, a light and an armature.
 - **Not tested:** Blender versions other than 5.2, and macOS and Linux (the Check in X-Plane plugin is Windows only).
-- **Not yet checked in X-Plane:** the static animation change (#253) and `ELSE` chains (#284) exported by XPlane2Blender. Check in X-Plane can now do this in a few minutes each.
+- **Checked in X-Plane with Check in X-Plane** (`python tests.py --xplane`): the static animation change (#253) drew exactly like the old tables, to the pixel; `ELSE` chains (#284) drew the expected branches with scenery shadows on and off, once `ELSE IF` was replaced by nested `IF`s; and Laminar's `IF NOT SCENERY_SHADOWS` showed only with scenery shadows off.
 
 ## Not fixed
+
+- **Several transform datarefs on one object or bone** (found with Check in X-Plane, not new in 5.0): X-Plane adds the keyframe tables of all the transform datarefs on one object or bone, while Blender shows one pose. A table that doesn't move still adds its offset, so an object whose second dataref sits at x = 2 is drawn 2 m further over in X-Plane than in Blender. That's how XPlane2Blender has always written several datarefs on one object; it isn't new in 5.0. Fixing it changes output, so it needs your decision.
 
 - **#701:** a custom `ATTR_light_level` on a parent is reset for each child. It's understood, but fixing it changes output, so it needs your decision.
 - **#461, #576:** design choices. The findings are in REVIEW-5.0.md.

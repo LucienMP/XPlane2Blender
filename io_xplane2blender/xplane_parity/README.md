@@ -81,13 +81,41 @@ python parity.py cleanup
 
 `--xplane DIR` and `--blender EXE` (or `XPLANE_DIR` and `BLENDER`) say where things are;
 `--skip-xplane` re-renders and compares with the screenshots already in the work folder.
+
+More options of `run`:
+
+- `--condition NAME=0|1`: the state of an OBJ condition (`SCENERY_SHADOWS`, `VERSION10`,
+  ...) in this X-Plane run. Blender then hides what X-Plane skips: objects whose `IF` is
+  false, and every branch of an `ELSE` chain but the first that holds. A model
+  with conditions needs a state for each variable it uses.
+- `--xplane-pref KEY=VALUE`: an `X-Plane.prf` entry for this run only, restored afterwards.
+  `renopt_shadow_quality_04=0` turns scenery shadows off, which is what the
+  `SCENERY_SHADOWS` condition follows (`Resources/settings.txt`: quality 0 sets
+  `shadow/scenery_shadows 0` and marks `SCENERY_SHADOWS` for reload). Setting the art
+  control while X-Plane runs doesn't change the condition.
+- `--obj FILE`: photograph this OBJ instead of the export (same views, booth and textures).
+- `--against WORK`: compare with another run's X-Plane screenshots instead of Blender's
+  renders, to show that two OBJs draw the same.
+
+`sample --kind static` and `sample --kind conditions` make the scenes the X-Plane tests use
+for #253 (static keyframe tables) and #284 (`ELSE` chains).
 Results go in `work/<name>/`: `model.obj`, `blender_<view>.png`, `xplane_<view>.png`,
 `diff_<view>.png`, `comparison.png`, `report.txt`, the plugin's log and X-Plane's Log.txt.
 
 `tests/features/parity_tool.test.py` runs in the normal suite without X-Plane: the palette
 conversion, the classifier, the comparisons and each mode's export. The X-Plane runs are
-in `tests/xplane_visual/` and only run with `python tests.py --xplane` (about ten minutes
-for the three modes), since they start X-Plane; CI can't run them.
+in `tests/xplane_visual/` and only run with `python tests.py --xplane`, since they start
+X-Plane; CI can't run them. They take about 20 minutes, one X-Plane start each:
+
+- `parity_sample`: the sample, in all three checks.
+- `parity_static`: #253's static keyframe steps against the two-key tables the exporter
+  wrote before, X-Plane against X-Plane.
+- `parity_conditions`: `ELSE` chains and `IF NOT SCENERY_SHADOWS`, with scenery shadows
+  on and off.
+
+What they found: X-Plane 12.4.3 drew an `ELSE IF` branch even when the `IF` before it was taken, so XPlane2Blender writes each conditional alternative as `ELSE` followed by a nested `IF ... ENDIF`; plain `ELSE` and nested `IF`s behave. And x-Plane adds the keyframe tables of all the transform datarefs on one object or bone, while Blender shows one pose. A table that doesn't move still adds its offset, so an object whose second dataref sits at x = 2 is drawn 2 m further over in X-Plane than in Blender. That's how XPlane2Blender has always written several datarefs on one object; it isn't new in 5.0; the
+static-table scene shows it when compared with Blender, which is why that test compares
+X-Plane with X-Plane.
 
 ## Results on the sample (X-Plane 12.4.3, 13 October 2026)
 
@@ -98,8 +126,16 @@ for the three modes), since they start X-Plane; CI can't run them.
 - Textures: 91 to 93% texture agreement, silhouettes overlapping 93 to 95%; the misses are
   the colour shifts at texture cell edges. Before the check rendered the root's texture on
   every material it failed honestly at 16%, since the sample's materials had no texture.
-- Lights: the beacon's billboard is 2 to 8 px from Blender's sphere in every view, red in
-  both (X-Plane's (1.0, 0.35, 0.1) after tone mapping).
+- Lights: the sample's light is `taxi_r`, a steady red light. Its billboard is 0 to 1 px from
+  Blender's sphere in every view, red in both (X-Plane's (1.0, 0.13, 0.05) after tone
+  mapping). The sample first used `airplane_beacon`, which flashes: one run caught it at
+  the peak of a flash, a flare too big to look like a billboard, so a glow with a white
+  core now counts as a billboard and only a glow without one as spill.
+- `#253` and `#284`, with `python tests.py --xplane` on 15 October 2026: see "What they
+  found" above.
+
+`tests/tmp` is cleared at the start of every test run, so copy an X-Plane test's work
+folder elsewhere if you want to keep its screenshots.
 
 ## Building the plugin
 

@@ -192,24 +192,102 @@ def box(name, size, location, rotation=(0, 0, 0), parent=None, material=None):
     return obj
 
 
-def cmd_sample(args):
-    """A designer-style scene: ordinary materials, a texture, a flap, a hidden part, a light"""
+def sample_root(out_dir, material_names):
+    """An empty scene with a palette, an exportable root and plain materials"""
     from io_xplane2blender.tests import test_creation_helpers as tch
 
-    out_dir = os.path.dirname(os.path.abspath(args.blend))
     os.makedirs(out_dir, exist_ok=True)
     tch.delete_everything()
     make_booth.write_palette(os.path.join(out_dir, "palette.png"))
-    materials = {name: bpy.data.materials.new(name) for name in ("body", "post", "wedge", "bar", "cover", "flag", "flap")}
+    materials = {name: bpy.data.materials.new(name) for name in material_names}
     for mat in materials.values():
         mat.use_nodes = True
-
     root = bpy.data.objects.new("parity_sample", None)
     bpy.context.scene.collection.objects.link(root)
     root.xplane.isExportableRoot = True
     root.xplane.layer.name = "model"
     root.xplane.layer.export_type = "scenery"
     root.xplane.layer.texture = "//palette.png"
+    return root, materials
+
+
+def save_sample(blend):
+    bpy.context.scene.frame_set(1)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(blend))
+    print("SAMPLE", blend)
+
+
+def sample_static(blend):
+    """
+    #253: objects with two datarefs where the second one's keyframe table doesn't move
+    them, which the exporter writes as a static ANIM_trans / ANIM_rotate
+    """
+    from io_xplane2blender.tests import test_creation_helpers as tch
+
+    root, materials = sample_root(os.path.dirname(os.path.abspath(blend)), ("base", "slider", "spinner"))
+    box("base", (6, 4, 0.2), (0, 0, 0.1), parent=root, material=materials["base"])
+    mover, other = "sim/graphics/animation/sin_wave_2", "sim/cockpit2/engine/actuators/throttle_ratio_all"
+    # The slider moves from x=2 to x=1 with the mover; the other dataref's keys both see x=2
+    slider = box("slider", (1, 1, 1), (2, 0, 0.7), parent=root, material=materials["slider"])
+    tch.set_animation_data(slider, [
+        tch.KeyframeInfo(idx=1, dataref_path=mover, dataref_value=0.0, location=(2, 0, 0.7)),
+        tch.KeyframeInfo(idx=11, dataref_path=mover, dataref_value=1.0, location=(1, 0, 0.7)),
+    ])
+    tch.set_animation_data(slider, [
+        tch.KeyframeInfo(idx=1, dataref_path=other, dataref_value=0.0, location=(2, 0, 0.7)),
+        tch.KeyframeInfo(idx=21, dataref_path=other, dataref_value=1.0, location=(2, 0, 0.7)),
+    ])
+    # The spinner turns 0 to 45 degrees about Z with the mover; the other dataref's keys both see 45
+    spinner = box("spinner", (2, 0.4, 0.6), (-1.5, 1, 0.5), parent=root, material=materials["spinner"])
+    tch.set_animation_data(spinner, [
+        tch.KeyframeInfo(idx=1, dataref_path=mover, dataref_value=0.0, rotation=(0, 0, 0)),
+        tch.KeyframeInfo(idx=11, dataref_path=mover, dataref_value=1.0, rotation=(0, 0, 45)),
+    ])
+    tch.set_animation_data(spinner, [
+        tch.KeyframeInfo(idx=11, dataref_path=other, dataref_value=0.0, rotation=(0, 0, 45)),
+        tch.KeyframeInfo(idx=21, dataref_path=other, dataref_value=1.0, rotation=(0, 0, 45)),
+    ])
+    save_sample(blend)
+
+
+def sample_conditions(blend):
+    """
+    #284: an IF / ELSE IF / ELSE chain on SCENERY_SHADOWS, an ELSE that's always taken, and
+    Laminar's IF NOT SCENERY_SHADOWS. With scenery shadows on, a_if and e_else show; off,
+    c_elseif, e_else and f_ifnot show
+    """
+    root, materials = sample_root(os.path.dirname(os.path.abspath(blend)),
+                                  ("a_if", "b_else", "c_elseif", "d_never", "e_else", "f_ifnot"))
+    objects = {}
+    for name, location in (("a_if", (-3, 0, 0.5)), ("b_else", (-1, 0, 0.5)), ("c_elseif", (1, 0, 0.5)),
+                           ("d_never", (-2, 2.5, 0.5)), ("e_else", (0, 2.5, 0.5)), ("f_ifnot", (2, 2.5, 0.5))):
+        objects[name] = box(name, (1.2, 1.2, 1), location, parent=root, material=materials[name])
+
+    def condition(obj, variable, value):
+        c = obj.xplane.conditions.add()
+        c.variable = variable
+        c.value = value
+
+    condition(objects["a_if"], "SCENERY_SHADOWS", True)
+    objects["b_else"].xplane.else_of = objects["a_if"]
+    objects["c_elseif"].xplane.else_of = objects["a_if"]
+    condition(objects["c_elseif"], "VERSION10", True)
+    condition(objects["d_never"], "VERSION10", False)
+    objects["e_else"].xplane.else_of = objects["d_never"]
+    condition(objects["f_ifnot"], "SCENERY_SHADOWS", False)
+    save_sample(blend)
+
+
+def cmd_sample(args):
+    {"basic": sample_basic, "static": sample_static, "conditions": sample_conditions}[args.kind](args.blend)
+
+
+def sample_basic(blend):
+    """A designer-style scene: ordinary materials, a texture, a flap, a hidden part, a light"""
+    from io_xplane2blender.tests import test_creation_helpers as tch
+
+    root, materials = sample_root(os.path.dirname(os.path.abspath(blend)),
+                                  ("body", "post", "wedge", "bar", "cover", "flag", "flap"))
 
     box("cube", (2, 2, 2), (0, 0, 1), parent=root, material=materials["body"])
     box("post", (0.6, 0.6, 4), (3, 0, 2), parent=root, material=materials["post"])
@@ -231,16 +309,14 @@ def cmd_sample(args):
     hide.anim_type = "hide"
     hide.show_hide_v1, hide.show_hide_v2 = 0.5, 1.0
 
-    # A named light on the post
+    # A named light on the post: taxi_r, red, omnidirectional and steady. airplane_beacon
+    # flashes, so a screenshot could catch it dark or flaring
     light = tch.create_datablock_light(tch.DatablockInfo("LIGHT", "beacon", parent_info=tch.ParentInfo(root)), "POINT")
     light.location = (3, 0, 4.5)
     light.data.xplane.type = "named"
-    light.data.xplane.name = "airplane_beacon"
+    light.data.xplane.name = "taxi_r"
     light.data.color = (1.0, 0.0, 0.0)
-
-    bpy.context.scene.frame_set(1)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(args.blend))
-    print("SAMPLE", args.blend)
+    save_sample(blend)
 
 
 # --- Export ---------------------------------------------------------------------------------
@@ -407,6 +483,48 @@ def apply_albedo(root, albedo_path):
             obj.data.uv_layers.new()
 
 
+def condition_holds(obj, states):
+    """True when all the object's conditions (its own and its materials') hold in states"""
+    conditions = list(obj.xplane.conditions)
+    for slot in obj.material_slots:
+        if slot.material:
+            conditions += list(slot.material.xplane.conditions)
+    for condition in conditions:
+        if condition.variable not in states:
+            raise SystemExit(f"ERROR: {obj.name} has the condition {condition.variable};"
+                             f" give its state with --condition {condition.variable}=0 or 1")
+        if states[condition.variable] != condition.value:
+            return False
+    return True
+
+
+def apply_conditions(root, states):
+    """
+    Hides what X-Plane skips: objects whose IF is false, and in each ELSE IF / ELSE chain
+    every branch but the first that holds (ELSE IF branches first, then the ELSE, as exported)
+    """
+    objects = mesh_objects(root)
+
+    def hide(obj):
+        obj.hide_render = True
+        for child in obj.children_recursive:
+            child.hide_render = True
+
+    for obj in objects:
+        if obj.xplane.else_of is not None:
+            continue
+        taken = condition_holds(obj, states)
+        if not taken:
+            hide(obj)
+        alternatives = sorted((o for o in objects if o.xplane.else_of == obj),
+                              key=lambda o: (not o.xplane.conditions, o.name))
+        for alternative in alternatives:
+            if not taken and condition_holds(alternative, states):
+                taken = True
+            else:
+                hide(alternative)
+
+
 def light_spheres(root):
     """A small sphere in the light's colour where each exporting light is, meshes hidden"""
     for obj in mesh_objects(root):
@@ -443,6 +561,11 @@ def cmd_render(args):
     else:
         scene.frame_set(int(frame), subframe=frame - int(frame))
     apply_show_hide(root, resolved["datarefs"])
+    states = {}
+    for item in args.condition or []:
+        name, _, value = item.partition("=")
+        states[name] = value.strip() not in ("0", "false", "False", "")
+    apply_conditions(root, states)
     if args.mode == "palette":
         convert_to_palette(root, os.path.join(work, "palette.png"))
     elif args.mode == "textured":
@@ -681,11 +804,23 @@ def compare_lights(a, b, keep, args, lines):
     na, ba = normalised(a)
     nb, bb = normalised(b)
     blobs_a = blobs((ba > 0.3) & keep)
-    blobs_b = blobs((bb > 0.3) & keep)
     total = ba.size
-    # A glow bigger than 2% of the picture is a spill light on the floor, not a billboard
-    spill = [blob for blob in blobs_b if blob[0] / total > 0.02]
-    blobs_b = [blob for blob in blobs_b if blob[0] / total <= 0.02]
+    # A glow bigger than 2% of the picture is either a billboard flaring (a flash caught at
+    # its peak has a white core) or a spill light on the floor (no core). A flare's position
+    # is its core's; its colour comes from the whole glow
+    blobs_b, spill = [], []
+    for blob in blobs((bb > 0.3) & keep):
+        if blob[0] / total <= 0.02:
+            blobs_b.append(blob)
+            continue
+        x0, y0, x1, y1 = blob[3:7]
+        core = np.zeros_like(keep)
+        core[y0:y1 + 1, x0:x1 + 1] = (bb[y0:y1 + 1, x0:x1 + 1] > 0.9) & keep[y0:y1 + 1, x0:x1 + 1]
+        cores = [c for c in blobs(core) if c[0] / total <= 0.02]
+        if cores:
+            blobs_b += [(c[0], c[1], c[2], x0, y0, x1, y1) for c in cores]
+        else:
+            spill.append(blob)
     lines.append(f"lights: Blender {len(blobs_a)}, X-Plane {len(blobs_b)} billboards, {len(spill)} spill glow(s)")
     ok = True
     used = set()
@@ -698,7 +833,11 @@ def compare_lights(a, b, keep, args, lines):
         used.add(nearest[1])
         _, bx, by, x0, y0, x1, y1 = blobs_b[nearest[1]]
         colour_a = na[int(cy), int(cx)]
-        patch = nb[y0:y1 + 1, x0:x1 + 1][bb[y0:y1 + 1, x0:x1 + 1] > 0.3]
+        # The glow, not the white-hot core, carries the light's colour
+        brightness = bb[y0:y1 + 1, x0:x1 + 1]
+        patch = nb[y0:y1 + 1, x0:x1 + 1][(brightness > 0.3) & (brightness <= 0.9)]
+        if not len(patch):
+            patch = nb[y0:y1 + 1, x0:x1 + 1][brightness > 0.3]
         colour_b = patch.mean(axis=0) if len(patch) else np.zeros(3)
         hue_distance = float(((colour_a - colour_b) ** 2).sum())
         flag = "" if hue_distance < 0.6 else "  <-- colour differs"
@@ -767,6 +906,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("sample")
     p.add_argument("blend")
+    p.add_argument("--kind", choices=("basic", "static", "conditions"), default="basic")
     p = sub.add_parser("export")
     p.add_argument("blend")
     p.add_argument("root")
@@ -780,6 +920,7 @@ def main():
     p.add_argument("work")
     p.add_argument("--mode", default="palette")
     p.add_argument("--size", required=True)
+    p.add_argument("--condition", action="append", help="NAME=0|1, the state X-Plane's conditions are in")
     p = sub.add_parser("compare")
     p.add_argument("work")
     p.add_argument("--mode")
