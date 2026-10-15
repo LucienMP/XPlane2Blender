@@ -268,30 +268,34 @@ class XPlaneCommands:
         alternatives: List[xplane_object.XPlaneObject],
     ) -> str:
         """
-        Closes xplaneObject's single IF with ELSE IF / ELSE branches holding its
-        alternatives (#284). Each branch starts from the attribute state before
-        the IF, since X-Plane runs only one of them, and anything a branch changed
-        is unknown afterwards
+        Closes xplaneObject's single IF with ELSE branches holding its alternatives
+        (#284). An alternative with a condition is written as ELSE, then a nested
+        IF ... ENDIF, not as ELSE IF: X-Plane 12.4.3 drew an ELSE IF branch even when
+        the IF before it was taken (checked with Check in X-Plane), while nested IFs
+        and plain ELSE behave. Each branch starts from the attribute state before the
+        IF, since X-Plane runs only one of them, and anything a branch changed is
+        unknown afterwards
         """
         o = ""
         indent = xplaneObject.xplaneBone.getIndent()
         before = self._states_before_conditions.pop()
         end_states = [dict(self.written)]
+        open_ifs = 1
         for alternative in alternatives:
             self.written = dict(before)
+            o += f"{indent}ELSE\n"
             conditions = self._object_conditions(alternative)
             if conditions:
                 condition = conditions[0]
-                o += f"{indent}ELSE IF {'' if condition.value else 'NOT '}{condition.variable}\n"
-            else:
-                o += f"{indent}ELSE\n"
+                o += f"{indent}IF {'' if condition.value else 'NOT '}{condition.variable}\n"
+                open_ifs += 1
             alternative.writing_as_else = True
             try:
                 o += self.writeXPlaneBone(alternative.xplaneBone, self._lod_bucket_index)
             finally:
                 alternative.writing_as_else = False
             end_states.append(dict(self.written))
-        o += f"{indent}ENDIF\n"
+        o += f"{indent}ENDIF\n" * open_ifs
 
         self.written = dict(before)
         for name in set(before).union(*end_states):

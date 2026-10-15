@@ -2428,7 +2428,7 @@ class XPlaneObjectSettings(bpy.types.PropertyGroup):
 
     else_of: bpy.props.PointerProperty(
         name = "Else Of",
-        description = "Draw this object when that object's condition is false: it's written in the ELSE of that object's IF, or as an ELSE IF when it has a condition of its own. Both need the same parent, and that object can't be animated",
+        description = "Draw this object when that object's condition is false: it's written in the ELSE of that object's IF, with a nested IF when it has a condition of its own (an ELSE IF chain). Both need the same parent, and that object can't be animated",
         type = bpy.types.Object,
         poll = lambda self, obj: obj != self.id_data,
     )

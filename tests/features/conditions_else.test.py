@@ -69,13 +69,17 @@ class TestConditionsElse(XPlaneTestCase):
         self.assertEqual(
             self._lines(),
             [
-                # The index table is in name order, the directives in written order
+                # The index table is in name order, the directives in written order.
+                # The ELSE IF is a nested IF: X-Plane 12.4.3 ran an ELSE IF branch
+                # even when the IF before it was taken
                 "IF GLOBAL_SHADOWS",
                 "TRIS 0 36",  # a_if
-                "ELSE IF NOT VERSION10",
+                "ELSE",
+                "IF NOT VERSION10",
                 "TRIS 72 36",  # c_elseif
                 "ELSE",
                 "TRIS 36 36",  # b_else
+                "ENDIF",
                 "ENDIF",
                 "TRIS 108 36",  # d_after
             ],
@@ -84,7 +88,7 @@ class TestConditionsElse(XPlaneTestCase):
     def test_else_branch_can_be_animated(self) -> None:
         self._animate(self.b)
         lines = self._lines()
-        self.assertEqual(lines[4:9], ["ELSE", "ANIM_begin", "TRIS 36 36", "ANIM_end", "ENDIF"])
+        self.assertEqual(lines[5:11], ["ELSE", "ANIM_begin", "TRIS 36 36", "ANIM_end", "ENDIF", "ENDIF"])
 
     def test_attribute_state_restarts_per_branch(self) -> None:
         hard = bpy.data.materials.new("hard")

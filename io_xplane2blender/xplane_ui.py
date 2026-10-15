@@ -2046,7 +2046,7 @@ def conditions_layout(
         layout.row().prop(could_have_conditions.xplane, "else_of")
         target = could_have_conditions.xplane.else_of
         if target:
-            branch = "ELSE IF" if could_have_conditions.xplane.conditions else "ELSE"
+            branch = "ELSE, as a nested IF," if could_have_conditions.xplane.conditions else "ELSE"
             layout.row().label(
                 text=f"Written in the {branch} of '{target.name}', which needs one condition",
                 icon="INFO",
